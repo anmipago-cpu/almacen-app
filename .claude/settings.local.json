@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(cd \"C:\\\\Users\\\\Andrea Palacio\\\\almacen-app\" && npm run dev 2>&1 &)"
+    ]
+  }
+}
