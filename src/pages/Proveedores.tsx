@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { Download } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useProveedores } from '../hooks/useProveedores';
 import type { Proveedor } from '../types';
+import { exportarExcel } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 
 const TEMPLATE = {
@@ -18,19 +20,37 @@ const TEMPLATE = {
   active: true,
 };
 
-function formatProveedorCode(count: number) {
-  const number = count + 1;
-  return `SUP-${String(number).padStart(3, '0')}`;
+function getNextProveedorCode(proveedores: Proveedor[]) {
+  const maxNumber = proveedores.reduce((max, proveedor) => {
+    const match = proveedor.code?.match(/^SUP-(\d+)$/i);
+    const value = match ? Number(match[1]) : 0;
+    return Number.isFinite(value) ? Math.max(max, value) : max;
+  }, 0);
+  return `SUP-${String(maxNumber + 1).padStart(3, '0')}`;
 }
 
 export function Proveedores() {
   const { proveedores, loading, recargar, crearProveedor, actualizarProveedor } = useProveedores();
   const [nuevo, setNuevo] = useState<Omit<Proveedor, 'id' | 'created_at'>>({ ...TEMPLATE });
+  const [editingProveedorCode, setEditingProveedorCode] = useState<string | null>(null);
   const [editando, setEditando] = useState<Record<string, Partial<Proveedor>>>({});
   const [bulkItems, setBulkItems] = useState<Omit<Proveedor, 'id' | 'created_at'>[]>([]);
   const [bulkErrors, setBulkErrors] = useState<string[]>([]);
   const [bulkName, setBulkName] = useState('');
   const [importing, setImporting] = useState(false);
+  const nextCode = useMemo(() => getNextProveedorCode(proveedores), [proveedores]);
+
+  function handleExport() {
+    exportarExcel(proveedores.map(provider => ({
+      Código: provider.code,
+      Nombre: provider.name,
+      Descripción: provider.description || '',
+      Teléfono: provider.phone || '',
+      Contacto: provider.contact || '',
+      Email: provider.email || '',
+      Activo: provider.active ? 'Sí' : 'No',
+    })), 'proveedores');
+  }
 
   function handleNuevo(field: keyof typeof TEMPLATE, value: string) {
     setNuevo(prev => ({ ...prev, [field]: value }));
@@ -41,8 +61,7 @@ export function Proveedores() {
       toast.error('El nombre del proveedor es obligatorio.');
       return;
     }
-    const code = nuevo.code.trim() || formatProveedorCode(proveedores.length);
-    const proveedor = { ...nuevo, code };
+    const proveedor = { ...nuevo, code: nextCode };
     try {
       await crearProveedor(proveedor);
       toast.success('Proveedor creado correctamente.');
@@ -58,6 +77,7 @@ export function Proveedores() {
     try {
       await actualizarProveedor(code, cambios);
       setEditando(prev => { const next = { ...prev }; delete next[code]; return next; });
+      setEditingProveedorCode(null);
       toast.success('Proveedor actualizado.');
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Error al actualizar proveedor');
@@ -156,9 +176,14 @@ export function Proveedores() {
         title="Proveedores"
         subtitle="Administra proveedores y su información de contacto."
         actions={
-          <Button variant="outline" onClick={recargar} loading={loading}>
-            Actualizar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" icon={<Download size={15} />} onClick={handleExport} size="sm">
+              Exportar Excel
+            </Button>
+            <Button variant="outline" onClick={recargar} loading={loading}>
+              Actualizar
+            </Button>
+          </div>
         }
       />
 
@@ -166,7 +191,7 @@ export function Proveedores() {
         <Card>
           <h2 className="text-lg font-semibold text-slate-900 mb-3">Nuevo proveedor</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Código" value={nuevo.code} onChange={e => handleNuevo('code', e.target.value)} hint="Automático si se deja vacío" />
+            <Input label="Código" value={nextCode} readOnly hint="Se genera automáticamente" />
             <Input label="Nombre" value={nuevo.name} onChange={e => handleNuevo('name', e.target.value)} />
             <Input label="Teléfono" value={nuevo.phone} onChange={e => handleNuevo('phone', e.target.value)} />
             <Input label="Contacto" value={nuevo.contact} onChange={e => handleNuevo('contact', e.target.value)} />
@@ -212,58 +237,109 @@ export function Proveedores() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {['Código', 'Nombre', 'Teléfono', 'Contacto', 'Email', 'Activo', 'Acciones'].map(header => (
+                {['Código', 'Nombre', 'Descripción', 'Teléfono', 'Contacto', 'Email', 'Activo', 'Acciones'].map(header => (
                       <th key={header} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{header}</th>
                     ))}
               </tr>
             </thead>
             <tbody>
               {proveedores.length === 0 ? (
-                <tr><td colSpan={6} className="p-6 text-center text-slate-500">No hay proveedores registrados.</td></tr>
+                <tr><td colSpan={7} className="p-6 text-center text-slate-500">No hay proveedores registrados.</td></tr>
               ) : proveedores.map((proveedor, index) => {
                 const cambios = editando[proveedor.code] || {};
+                const isEditing = editingProveedorCode === proveedor.code;
                 return (
                   <tr key={proveedor.code} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                     <td className="px-4 py-3 font-mono text-slate-700">{proveedor.code}</td>
                     <td className="px-4 py-3">
-                      <input
-                        value={cambios.name ?? proveedor.name}
-                        onChange={e => setEditando(prev => ({ ...prev, [proveedor.code]: { ...prev[proveedor.code], name: e.target.value } }))}
-                        className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
-                      />
+                      {isEditing ? (
+                        <input
+                          value={cambios.name ?? proveedor.name}
+                          onChange={e => setEditando(prev => ({ ...prev, [proveedor.code]: { ...prev[proveedor.code], name: e.target.value } }))}
+                          className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                        />
+                      ) : (
+                        <span className="text-slate-900">{proveedor.name}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      <input
-                        value={cambios.phone ?? proveedor.phone ?? ''}
-                        onChange={e => setEditando(prev => ({ ...prev, [proveedor.code]: { ...prev[proveedor.code], phone: e.target.value } }))}
-                        className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
-                      />
+                      {isEditing ? (
+                        <input
+                          value={cambios.description ?? proveedor.description ?? ''}
+                          onChange={e => setEditando(prev => ({ ...prev, [proveedor.code]: { ...prev[proveedor.code], description: e.target.value } }))}
+                          className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                        />
+                      ) : (
+                        <span className="text-slate-600">{proveedor.description || '—'}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      <input
-                        value={cambios.contact ?? proveedor.contact ?? ''}
-                        onChange={e => setEditando(prev => ({ ...prev, [proveedor.code]: { ...prev[proveedor.code], contact: e.target.value } }))}
-                        className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
-                      />
+                      {isEditing ? (
+                        <input
+                          value={cambios.phone ?? proveedor.phone ?? ''}
+                          onChange={e => setEditando(prev => ({ ...prev, [proveedor.code]: { ...prev[proveedor.code], phone: e.target.value } }))}
+                          className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                        />
+                      ) : (
+                        <span className="text-slate-600">{proveedor.phone || '—'}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      <input
-                        value={cambios.email ?? proveedor.email ?? ''}
-                        onChange={e => setEditando(prev => ({ ...prev, [proveedor.code]: { ...prev[proveedor.code], email: e.target.value } }))}
-                        className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
-                      />
+                      {isEditing ? (
+                        <input
+                          value={cambios.contact ?? proveedor.contact ?? ''}
+                          onChange={e => setEditando(prev => ({ ...prev, [proveedor.code]: { ...prev[proveedor.code], contact: e.target.value } }))}
+                          className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                        />
+                      ) : (
+                        <span className="text-slate-600">{proveedor.contact || '—'}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      <input type="checkbox" checked={Boolean(cambios.active ?? proveedor.active ?? true)} onChange={e => setEditando(prev => ({ ...prev, [proveedor.code]: { ...prev[proveedor.code], active: e.target.checked } }))} />
+                      {isEditing ? (
+                        <input
+                          value={cambios.email ?? proveedor.email ?? ''}
+                          onChange={e => setEditando(prev => ({ ...prev, [proveedor.code]: { ...prev[proveedor.code], email: e.target.value } }))}
+                          className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                        />
+                      ) : (
+                        <span className="text-slate-600">{proveedor.email || '—'}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {isEditing ? (
+                        <input type="checkbox" checked={Boolean(cambios.active ?? proveedor.active ?? true)} onChange={e => setEditando(prev => ({ ...prev, [proveedor.code]: { ...prev[proveedor.code], active: e.target.checked } }))} />
+                      ) : (
+                        <span>{proveedor.active ? 'Sí' : 'No'}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center gap-2 justify-end">
-                        <Button variant="outline" size="sm" onClick={() => guardarEdicion(proveedor.code)}>
-                          Guardar
-                        </Button>
-                        <Button variant="danger" size="sm" onClick={() => eliminarProveedor(proveedor.code)}>
-                          Eliminar
-                        </Button>
+                        {isEditing ? (
+                          <>
+                            <Button variant="outline" size="sm" onClick={() => guardarEdicion(proveedor.code)}>
+                              Guardar
+                            </Button>
+                            <Button variant="secondary" size="sm" onClick={() => {
+                              setEditingProveedorCode(null);
+                              setEditando(prev => { const next = { ...prev }; delete next[proveedor.code]; return next; });
+                            }}>
+                              Cancelar
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button variant="outline" size="sm" onClick={() => {
+                              setEditingProveedorCode(proveedor.code);
+                              setEditando(prev => ({ ...prev, [proveedor.code]: { ...proveedor } }));
+                            }}>
+                              Editar
+                            </Button>
+                            <Button variant="danger" size="sm" onClick={() => eliminarProveedor(proveedor.code)}>
+                              Eliminar
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

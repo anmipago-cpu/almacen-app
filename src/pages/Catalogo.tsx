@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { RefreshCw, PlusCircle, Database } from 'lucide-react';
+import { RefreshCw, PlusCircle, Database, Download } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -9,6 +9,7 @@ import { BadgeCategoria } from '../components/ui/Badge';
 import { useProductos } from '../hooks/useProductos';
 import { useProveedores } from '../hooks/useProveedores';
 import { supabase } from '../lib/supabase';
+import { exportarExcel } from '../lib/utils';
 import { CATEGORIAS, type Producto } from '../types';
 
 const UNIDADES = ['CAJA', 'BULTO', 'PALLET', 'UNIDAD', 'ROLLO', 'SET', 'DRUM', 'SACK'];
@@ -41,6 +42,20 @@ function formatCode(category: string, subcategory: string, identifier: string) {
   return `${cat}-${sub}-${id}`;
 }
 
+function getNextIdentifier(productos: Producto[], category: string, subcategory: string): string {
+  if (!category || !subcategory) return '001';
+  const prefix = `${category.trim().toUpperCase()}-${String(subcategory).padStart(2, '0')}-`;
+  const matching = productos.filter(p => p.code?.startsWith(prefix));
+  if (matching.length === 0) return '001';
+  const maxNum = matching.reduce((max, p) => {
+    const suffix = p.code.slice(prefix.length);
+    const match = suffix.match(/^(\d+)$/);
+    const value = match ? Number(match[1]) : 0;
+    return Math.max(max, value);
+  }, 0);
+  return String(maxNum + 1).padStart(3, '0');
+}
+
 export function Catalogo() {
   const { productos, recargar } = useProductos();
   const { proveedores } = useProveedores();
@@ -55,7 +70,18 @@ export function Catalogo() {
   const [editando, setEditando] = useState<Record<string, Partial<Producto>>>({});
   const [editingProductCode, setEditingProductCode] = useState<string | null>(null);
 
+  const nextIdentifier = useMemo(
+    () => getNextIdentifier(productos, form.category, form.subcategory),
+    [productos, form.category, form.subcategory]
+  );
+
   const code = editingProductCode ? form.code : formatCode(form.category, form.subcategory, form.identifier);
+
+  useEffect(() => {
+    if (!editingProductCode && form.category && form.subcategory) {
+      setForm(prev => ({ ...prev, identifier: nextIdentifier }));
+    }
+  }, [nextIdentifier, editingProductCode, form.category, form.subcategory]);
 
   useEffect(() => {
     if (!editingProductCode) {
@@ -72,17 +98,49 @@ export function Catalogo() {
     });
   }, [productos, filter, categoriaFiltro]);
 
+  function handleExport() {
+    exportarExcel(filtered.map(p => ({
+      Código: p.code,
+      Nombre: p.name,
+      Descripción: p.description || '',
+      Categoría: p.category,
+      Subcategoría: p.subcategory,
+      Presentación: p.presentation || '',
+      Proveedor: p.supplier || '',
+      'Código proveedor': p.supplier_code || '',
+      Fabricante: p.manufacturer || '',
+      Unidad: p.unit,
+      'Contenido unidad': p.unit_content,
+      'Unidad base': p.unit_base,
+      'Stock mínimo': p.stock_min,
+      'Stock bajo': p.stock_bajo,
+      'Requiere lote': p.requires_lot ? 'Sí' : 'No',
+      Activo: p.active ? 'Sí' : 'No',
+    })), 'catalogo');
+  }
+
   function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
-    setForm(prev => ({ ...prev, [field]: value }));
-    if (field === 'supplier') {
-      const provider = proveedores.find(p => p.name === value || p.code === value);
-      setForm(prev => ({ ...prev, supplier_code: provider?.code || '' }));
-    }
+    setForm(prev => {
+      const updated = { ...prev, [field]: value };
+      if (field === 'category' || field === 'subcategory') {
+        updated.identifier = '';
+      }
+      if (field === 'supplier') {
+        const provider = proveedores.find(p => p.name === value || p.code === value);
+        updated.supplier_code = provider?.code || '';
+      }
+      return updated;
+    });
   }
 
   async function createProduct() {
     if (!form.name || !form.category || !form.unit) {
       toast.error('Completa todos los campos obligatorios antes de guardar.');
+      return;
+    }
+    const existingCode = productos.find(p => p.code === code);
+    if (existingCode) {
+      toast.error(`El código ${code} ya existe en el catálogo.`);
       return;
     }
     const payload: Producto = {
@@ -297,9 +355,14 @@ export function Catalogo() {
         title="Catálogo de Productos"
         subtitle="Administra el catálogo completo de productos con carga individual o masiva."
         actions={
-          <Button variant="outline" icon={<RefreshCw size={16} />} onClick={recargar}>
-            Actualizar catálogo
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" icon={<Download size={16} />} onClick={handleExport} size="sm">
+              Exportar Excel
+            </Button>
+            <Button variant="outline" icon={<RefreshCw size={16} />} onClick={recargar}>
+              Actualizar catálogo
+            </Button>
+          </div>
         }
       />
 
@@ -307,10 +370,10 @@ export function Catalogo() {
         <Card>
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Nuevo/editar producto</h2>
-              <p className="text-sm text-slate-500">Genera el código según la estructura de categoría y mantén el catálogo alineado.</p>
+              <h2 className="text-lg font-semibold text-slate-900">Nuevo producto</h2>
+              <p className="text-sm text-slate-500">Crea productos con código automático único. El identificador se genera secuencialmente.</p>
             </div>
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">Código: CATEGORÍA-SUBCATEGORÍA-IDENTIFICADOR</span>
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">Formato: CAT-SUBCAT-ID</span>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -320,9 +383,14 @@ export function Catalogo() {
                 <option key={key} value={key}>{cat.label}</option>
               ))}
             </Select>
-            <Input label="Subcategoría" value={form.subcategory} onChange={e => handleField('subcategory', e.target.value)} placeholder="01" />
-            <Input label="Identificador" value={form.identifier} onChange={e => handleField('identifier', e.target.value)} placeholder="001" />
-            <Input label="Código generado" value={code} readOnly />
+            <Select label="Subcategoría" value={form.subcategory} onChange={e => handleField('subcategory', e.target.value)}>
+              <option value="">Selecciona subcategoría</option>
+              {['01','02','03','04','05','06','07'].map(sub => (
+                <option key={sub} value={sub}>{sub}</option>
+              ))}
+            </Select>
+            <Input label="Identificador" value={form.identifier} readOnly hint="Consecutivo automático por categoría/subcategoría" className="bg-blue-50" />
+            <Input label="Código generado" value={code} readOnly hint="Automático: CAT-SC-ID" className="bg-blue-50" />
             <Input label="Nombre" value={form.name} onChange={e => handleField('name', e.target.value)} className="sm:col-span-2" />
             <Textarea label="Descripción" value={form.description} onChange={e => handleField('description', e.target.value)} className="sm:col-span-2" rows={3} />
             <Select label="Proveedor" value={form.supplier} onChange={e => handleField('supplier', e.target.value)}>

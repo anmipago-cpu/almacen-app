@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Save, RotateCcw } from 'lucide-react';
+import { Save, RotateCcw, Database } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -10,8 +10,9 @@ import { ComboboxProducto } from '../components/ui/Combobox';
 import { useProductos } from '../hooks/useProductos';
 import { useRegistros } from '../hooks/useRegistros';
 import { useSearchContext } from '../context/SearchContext';
+import { supabase } from '../lib/supabase';
 import { hoy, formatNumero } from '../lib/utils';
-import type { Producto } from '../types';
+import type { Producto, Registro } from '../types';
 
 interface FormData {
   fecha: string;
@@ -30,6 +31,10 @@ export function Recepcion() {
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [productoError, setProductoError] = useState('');
+  const [bulkItems, setBulkItems] = useState<Omit<Registro, 'id' | 'created_at'>[]>([]);
+  const [bulkErrors, setBulkErrors] = useState<string[]>([]);
+  const [bulkName, setBulkName] = useState('');
+  const [importing, setImporting] = useState(false);
 
   const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm<FormData>({
     defaultValues: {
@@ -98,6 +103,108 @@ export function Recepcion() {
       toast.error(e instanceof Error ? e.message : 'Error al guardar la recepción');
     } finally {
       setGuardando(false);
+    }
+  }
+
+  function parseCsvRecepciones(text: string) {
+    const rows = text.split(/\r?\n/).filter(Boolean);
+    if (!rows.length) return [];
+    const headers = rows[0].split(',').map(header => header.trim().toLowerCase());
+    return rows.slice(1).map(line => {
+      const values = line.split(',').map(value => value.trim());
+      const record: Record<string, string> = {};
+      headers.forEach((field, index) => { record[field] = values[index] || ''; });
+      const productoCode = record.producto_code || record.code || record.codigo || '';
+      const found = productos.find(prod => prod.code === productoCode);
+      return {
+        fecha: record.fecha || hoy(),
+        tipo: 'RECEPCION' as const,
+        producto_code: productoCode,
+        producto_name: record.producto_name || record.name || found?.name || '',
+        lote: record.lote || '',
+        pallet: record.po || record.pallet || '',
+        proveedor: record.proveedor || found?.supplier || '',
+        recibido_por: record.recibido_por || record.recibidor || '',
+        cantidad_unidades: Number(record.cantidad_recibida || record.cantidad || record.cantidad_unidades || 0),
+        contenido_por_unidad: Number(record.contenido_por_unidad || record.contenido || 1),
+        total_unidades: Number(record.cantidad_recibida || record.cantidad || 0) * Number(record.contenido_por_unidad || record.contenido || 1),
+        observaciones: record.observaciones || record.observacion || '',
+      };
+    });
+  }
+
+  async function handleBulkFile(event: ChangeEvent<HTMLInputElement>) {
+    setBulkErrors([]);
+    setBulkItems([]);
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setBulkName(file.name);
+    setImporting(true);
+
+    try {
+      const text = await file.text();
+      const parsed = parseCsvRecepciones(text);
+      const errors: string[] = [];
+      const valid: Omit<Registro, 'id' | 'created_at'>[] = [];
+      const codeCounts: Record<string, number> = {};
+
+      parsed.forEach((item, index) => {
+        if (!item.producto_code) {
+          errors.push(`Fila ${index + 2}: falta producto_code`);
+        }
+        if (!item.producto_name) {
+          errors.push(`Fila ${index + 2}: falta producto_name o el código de producto no existe`);
+        }
+        if (!item.recibido_por) {
+          errors.push(`Fila ${index + 2}: falta recibido_por`);
+        }
+        if (!(item.cantidad_unidades > 0)) {
+          errors.push(`Fila ${index + 2}: cantidad_recibida debe ser mayor que 0`);
+        }
+        if (!(item.contenido_por_unidad > 0)) {
+          errors.push(`Fila ${index + 2}: contenido_por_unidad debe ser mayor que 0`);
+        }
+        if (item.producto_code) {
+          codeCounts[item.producto_code] = (codeCounts[item.producto_code] || 0) + 1;
+        }
+        valid.push(item);
+      });
+
+      Object.entries(codeCounts).forEach(([code, count]) => {
+        if (count > 1) {
+          errors.push(`Código repetido en CSV: ${code}`);
+        }
+      });
+
+      setBulkItems(valid);
+      setBulkErrors(errors);
+      if (!errors.length) {
+        toast.success(`${valid.length} recepciones listas para importar`);
+      }
+    } catch (error: unknown) {
+      setBulkErrors([error instanceof Error ? error.message : 'Error al procesar el archivo']);
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function importBulkRecepciones() {
+    if (!bulkItems.length) {
+      toast.error('No hay recepciones válidas para importar.');
+      return;
+    }
+    setImporting(true);
+    try {
+      const { error } = await supabase.from('registros').insert(bulkItems);
+      if (error) throw error;
+      toast.success(`${bulkItems.length} recepciones importadas correctamente.`);
+      setBulkItems([]);
+      setBulkName('');
+      setBulkErrors([]);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Error al importar recepciones');
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -217,6 +324,38 @@ export function Recepcion() {
             </Button>
           </div>
         </form>
+      </Card>
+
+      <Card>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-slate-900">Carga masiva de recepciones</h2>
+          <p className="text-sm text-slate-500">Importa un CSV con los registros de recepciones ya efectuadas.</p>
+        </div>
+        <div className="space-y-4">
+          <label className="block text-sm font-medium text-slate-700">Archivo CSV</label>
+          <input type="file" accept=".csv" onChange={handleBulkFile} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" />
+          <div className="rounded-md bg-blue-50 border border-blue-100 p-3 text-sm text-blue-800">
+            Columnas esperadas: <strong>producto_code, producto_name, fecha, recibido_por, cantidad_recibida, contenido_por_unidad</strong><br />
+            Opcionales: <strong>po, lote, proveedor, observaciones</strong>
+          </div>
+          {bulkName && <p className="text-sm text-slate-500">Archivo: {bulkName}</p>}
+          {bulkErrors.length > 0 && (
+            <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <p className="font-semibold">Errores</p>
+              <ul className="mt-2 list-disc pl-5 space-y-1">
+                {bulkErrors.map((error, index) => <li key={index}>{error}</li>)}
+              </ul>
+            </div>
+          )}
+          {bulkItems.length > 0 && (
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <p>{bulkItems.length} recepciones listas para importar.</p>
+              <Button variant="primary" icon={<Database size={16} />} onClick={importBulkRecepciones} loading={importing}>
+                Importar recepciones
+              </Button>
+            </div>
+          )}
+        </div>
       </Card>
     </div>
   );

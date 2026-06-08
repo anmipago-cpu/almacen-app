@@ -1,3 +1,5 @@
+import * as XLSX from 'xlsx';
+
 export function formatFecha(fecha: string): string {
   if (!fecha) return '';
   const [y, m, d] = fecha.split('-');
@@ -33,6 +35,21 @@ export function exportarCSV(datos: Record<string, unknown>[], nombreArchivo: str
   const a = document.createElement('a');
   a.href = url;
   a.download = `${nombreArchivo}_${hoy()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function exportarExcel(datos: Record<string, unknown>[], nombreArchivo: string): void {
+  if (!datos.length) return;
+  const worksheet = XLSX.utils.json_to_sheet(datos);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Datos');
+  const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${nombreArchivo}_${hoy()}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
 }

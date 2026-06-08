@@ -4,8 +4,9 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { BadgeCategoria, BadgeEstado } from '../components/ui/Badge';
 import { useInventario } from '../hooks/useInventario';
-import { formatNumero, exportarCSV } from '../lib/utils';
-import type { InventarioItem } from '../types';import { FileText } from 'lucide-react';
+import { formatNumero, exportarExcel } from '../lib/utils';
+import type { InventarioItem } from '../types';
+import { Download } from 'lucide-react';
 function getSemaforo(item: InventarioItem) {
   if (item.stock_actual <= 0) return 'AGOTADO';
   const semanas = item.semanas_restantes ?? (item.promedio_semanal > 0 ? item.stock_actual / item.promedio_semanal : Infinity);
@@ -26,7 +27,7 @@ export function Alarmas() {
   }, [inventario]);
 
   function handleExport() {
-    exportarCSV(datos.map(item => ({
+    exportarExcel(datos.map(item => ({
       Código: item.code,
       Nombre: item.name,
       Categoría: item.category,
@@ -76,7 +77,7 @@ export function Alarmas() {
             <h2 className="text-base font-semibold text-slate-900">Listado de alarmas</h2>
             <p className="text-sm text-slate-500">Ordenado por urgencia.</p>
           </div>
-          <Button variant="outline" onClick={handleExport} icon={<FileText size={16} />}>Exportar</Button>
+          <Button variant="outline" onClick={handleExport} icon={<Download size={16} />}>Exportar Excel</Button>
         </div>
 
         {loading ? (

@@ -9,7 +9,7 @@ import { BadgeCategoria, BadgeEstado } from '../components/ui/Badge';
 import { useInventario } from '../hooks/useInventario';
 import { useRegistros } from '../hooks/useRegistros';
 import { CATEGORIAS, getEstado, type InventarioItem } from '../types';
-import { formatNumero, exportarCSV, hoy } from '../lib/utils';
+import { formatNumero, exportarExcel, hoy } from '../lib/utils';
 
 const ESTADOS = ['', 'AGOTADO', 'CRITICO', 'BAJO', 'OK'];
 
@@ -165,7 +165,7 @@ export function Inventario() {
   });
 
   function handleExport() {
-    exportarCSV(datos.map(i => ({
+    exportarExcel(datos.map(i => ({
       Código: i.code, Categoría: i.category, Producto: i.name, Proveedor: i.supplier || '',
       Unidad: i.unit || '', Recibido: i.total_recibido, Consumido: i.total_consumido,
       'Stock Actual': i.stock_actual, 'Stock Min': i.stock_min, Estado: getEstado(i),
@@ -180,7 +180,7 @@ export function Inventario() {
         actions={
           <>
             <Button variant="outline" icon={<RefreshCw size={15} />} onClick={recargar} size="sm">Actualizar</Button>
-            <Button variant="outline" icon={<Download size={15} />} onClick={handleExport} size="sm">Exportar CSV</Button>
+            <Button variant="outline" icon={<Download size={15} />} onClick={handleExport} size="sm">Exportar Excel</Button>
           </>
         }
       />

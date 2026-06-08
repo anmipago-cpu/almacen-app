@@ -5,7 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { BadgeTipo } from '../components/ui/Badge';
 import { useRegistros } from '../hooks/useRegistros';
-import { formatFecha, formatNumero, exportarCSV } from '../lib/utils';
+import { formatFecha, formatNumero, exportarExcel } from '../lib/utils';
 
 const POR_PAGINA = 25;
 const TIPOS = ['', 'RECEPCION', 'CONSUMO', 'AJUSTE', 'DEVOLUCION'];
@@ -23,7 +23,7 @@ export function Registros() {
   const totalPaginas = Math.ceil(total / POR_PAGINA);
 
   function handleExport() {
-    exportarCSV(registros.map(r => ({
+    exportarExcel(registros.map(r => ({
       Fecha: r.fecha, Tipo: r.tipo, Código: r.producto_code, Producto: r.producto_name,
       Lote: r.lote || '', Proveedor: r.proveedor || '', 'Recibido/Por': r.recibido_por || '',
       Cantidad: r.cantidad_unidades, Total: r.total_unidades, Observaciones: r.observaciones || '',
@@ -41,7 +41,7 @@ export function Registros() {
         subtitle={`${total} movimientos en total`}
         actions={
           <Button variant="outline" icon={<Download size={15} />} onClick={handleExport} size="sm">
-            Exportar CSV
+            Exportar Excel
           </Button>
         }
       />
