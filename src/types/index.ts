@@ -56,12 +56,16 @@ export interface InventarioItem {
   supplier?: string;
   presentation?: string;
   unit?: string;
+  unit_content?: number;
+  unit_base?: string;
+  requires_lot?: boolean;
   stock_min: number;
   stock_bajo: number;
   total_recibido: number;
   total_consumido: number;
   stock_actual: number;
-  promedio_semanal: number;
+  stock_ultimo_inventario: number;
+  promedio_consumo_semanal: number;
   semanas_restantes?: number;
 }
 

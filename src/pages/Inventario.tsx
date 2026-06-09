@@ -20,10 +20,10 @@ export function Inventario() {
   const items = useMemo(() => {
     return inventario.map(item => {
       const prod = productos.find(p => p.code === item.code);
-      const unit_content = (Number(prod?.unit_content) > 0) ? Number(prod?.unit_content) : 1;
-      const unit = prod?.unit || item.unit || 'UNIDAD';
-      const unit_base = prod?.unit_base || '';
       const subcategory = prod?.subcategory || '';
+      const unit_content = Number(item.unit_content) > 0 ? Number(item.unit_content) : 1;
+      const unit = item.unit || 'UNIDAD';
+      const unit_base = item.unit_base || '';
       const stock = Number(item.stock_actual) || 0;
       const cantidad_conteo = stock / unit_content;
       return { ...item, stock_actual: stock, unit_content, unit, unit_base, subcategory, cantidad_conteo };
