@@ -12,6 +12,7 @@ import { useUnidades } from '../hooks/useUnidades';
 import { supabase } from '../lib/supabase';
 import { exportarExcel } from '../lib/utils';
 import { CATEGORIAS, SUBCATEGORIAS, type Producto } from '../types';
+import { useStore } from '../store/useStore';
 
 
 
@@ -46,21 +47,26 @@ function formatCode(category: string, subcategory: string, identifier: string) {
 function getNextIdentifier(productos: Producto[], category: string, subcategory: string): string {
   if (!category || !subcategory) return '001';
   const prefix = `${category.trim().toUpperCase()}-${String(subcategory).padStart(2, '0')}-`;
-  const matching = productos.filter(p => p.code?.startsWith(prefix));
-  if (matching.length === 0) return '001';
-  const maxNum = matching.reduce((max, p) => {
-    const suffix = p.code.slice(prefix.length);
-    const match = suffix.match(/^(\d+)$/);
-    const value = match ? Number(match[1]) : 0;
-    return Math.max(max, value);
-  }, 0);
-  return String(maxNum + 1).padStart(3, '0');
+  const used = new Set(
+    productos
+      .filter(p => p.code?.startsWith(prefix))
+      .map(p => {
+        const m = p.code.slice(prefix.length).match(/^(\d+)$/);
+        return m ? Number(m[1]) : null;
+      })
+      .filter((n): n is number => n !== null)
+  );
+  let next = 1;
+  while (used.has(next)) next++;
+  return String(next).padStart(3, '0');
 }
 
 export function Catalogo() {
   const { productos, recargar } = useProductos();
   const { proveedores } = useProveedores();
   const { unidadesConteo, unidadesBase } = useUnidades();
+  const subcategoriasStore = useStore(s => s.subcategorias);
+  const categoriasStore = useStore(s => s.categorias);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [bulkItems, setBulkItems] = useState<Producto[]>([]);
   const [bulkErrors, setBulkErrors] = useState<string[]>([]);
@@ -100,12 +106,18 @@ export function Catalogo() {
       : productos;
     const codigos = [...new Set(base.map(p => p.subcategory).filter(Boolean))].sort() as string[];
     return codigos.map(codigo => {
-      const nombre = categoriasFiltro.length === 1
-        ? SUBCATEGORIAS[categoriasFiltro[0]]?.[codigo]
-        : undefined;
+      let nombre: string | undefined;
+      if (categoriasFiltro.length === 1) {
+        nombre = (subcategoriasStore[categoriasFiltro[0]] ?? SUBCATEGORIAS[categoriasFiltro[0]])?.[codigo];
+      } else {
+        for (const cat of categoriasFiltro) {
+          const n = (subcategoriasStore[cat] ?? SUBCATEGORIAS[cat])?.[codigo];
+          if (n) { nombre = n; break; }
+        }
+      }
       return { codigo, label: nombre ? `${nombre} (${codigo})` : codigo };
     });
-  }, [productos, categoriasFiltro]);
+  }, [productos, categoriasFiltro, subcategoriasStore]);
 
   const filtered = useMemo(() => {
     return productos.filter(p => {
@@ -166,15 +178,13 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
       toast.error(`El código ${code} ya existe en el catálogo.`);
       return;
     }
-    const payload: Producto = {
+    const payload = {
       code,
       name: form.name,
       description: form.description,
       category: form.category,
       subcategory: form.subcategory,
-      identifier: form.identifier,
       supplier: form.supplier,
-      supplier_code: form.supplier_code,
       manufacturer: form.manufacturer,
       presentation: form.presentation,
       unit: form.unit,
@@ -193,7 +203,9 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
       setForm({ ...EMPTY_FORM });
       recargar();
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Error al guardar producto');
+      const msg = (error as any)?.message ?? JSON.stringify(error) ?? 'Error al guardar producto';
+      toast.error(msg);
+      console.error('createProduct error:', error);
     } finally {
       setSaving(false);
     }
@@ -211,22 +223,37 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
       toast.success('Producto actualizado.');
       recargar();
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Error al actualizar producto');
+      const msg = (error as any)?.message ?? JSON.stringify(error) ?? 'Error al actualizar producto';
+      toast.error(msg);
+      console.error('guardarEdicion error:', error);
     } finally {
       setSaving(false);
     }
   }
 
   async function eliminarProducto(code: string) {
-    if (!confirm(`¿Eliminar producto ${code}? Esta acción no se puede deshacer.`)) return;
+    if (!confirm(`¿Eliminar producto ${code}?`)) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('productos').delete().eq('code', code);
-      if (error) throw error;
-      toast.success('Producto eliminado.');
+      const [{ count: recCount }, { count: conCount }, { count: invCount }] = await Promise.all([
+        supabase.from('recepciones').select('*', { count: 'exact', head: true }).eq('producto_code', code),
+        supabase.from('consumos_semanales').select('*', { count: 'exact', head: true }).eq('producto_code', code),
+        supabase.from('inventario_fisico').select('*', { count: 'exact', head: true }).eq('producto_code', code),
+      ]);
+      const tieneTrazabilidad = (recCount ?? 0) > 0 || (conCount ?? 0) > 0 || (invCount ?? 0) > 0;
+      if (tieneTrazabilidad) {
+        const { error } = await supabase.from('productos').update({ active: false }).eq('code', code);
+        if (error) throw error;
+        toast.info(`Producto ${code} desactivado (tiene registros históricos, el código queda reservado).`);
+      } else {
+        const { error } = await supabase.from('productos').delete().eq('code', code);
+        if (error) throw error;
+        toast.success(`Producto ${code} eliminado. El código puede reutilizarse.`);
+      }
       recargar();
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Error al eliminar producto');
+      const msg = (error as any)?.message ?? 'Error al eliminar producto';
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -435,14 +462,14 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
           <div className="grid gap-4 sm:grid-cols-2">
             <Select label="Categoría" value={form.category} onChange={e => handleField('category', e.target.value)}>
               <option value="">Selecciona categoría</option>
-              {Object.entries(CATEGORIAS).map(([key, cat]) => (
+              {Object.entries(categoriasStore).map(([key, cat]) => (
                 <option key={key} value={key}>{cat.label}</option>
               ))}
             </Select>
             <Select label="Subcategoría" value={form.subcategory} onChange={e => handleField('subcategory', e.target.value)}>
               <option value="">Selecciona subcategoría</option>
-              {['01','02','03','04','05','06','07'].map(sub => (
-                <option key={sub} value={sub}>{sub}</option>
+              {form.category && Object.entries(subcategoriasStore[form.category] ?? SUBCATEGORIAS[form.category] ?? {}).map(([codigo, nombre]) => (
+                <option key={codigo} value={codigo}>{nombre} ({codigo})</option>
               ))}
             </Select>
             <Input label="Identificador" value={form.identifier} readOnly hint="Consecutivo automático por categoría/subcategoría" className="bg-blue-50" />
@@ -633,13 +660,13 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                           className="w-full rounded border border-slate-200 px-1 py-0.5 text-xs"
                         >
                           <option value="">—</option>
-                          {Object.entries(SUBCATEGORIAS[cambios.category ?? product.category] ?? {}).map(([codigo, nombre]) => (
+                          {Object.entries(subcategoriasStore[cambios.category ?? product.category] ?? SUBCATEGORIAS[cambios.category ?? product.category] ?? {}).map(([codigo, nombre]) => (
                             <option key={codigo} value={codigo}>{nombre} ({codigo})</option>
                           ))}
                         </select>
                       ) : (
                         <span className="text-slate-600 text-xs">
-                          {SUBCATEGORIAS[product.category]?.[product.subcategory ?? ''] ?? product.subcategory ?? '—'}
+                          {(subcategoriasStore[product.category] ?? SUBCATEGORIAS[product.category])?.[product.subcategory ?? ''] ?? product.subcategory ?? '—'}
                         </span>
                       )}
                     </td>
@@ -821,6 +848,7 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
 function MultiSelectCategorias({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const cats = useStore(s => s.categorias);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -835,7 +863,7 @@ function MultiSelectCategorias({ value, onChange }: { value: string[]; onChange:
   }
 
   const label = value.length === 0 ? 'Todas las categorías' : value.length === 1
-    ? CATEGORIAS[value[0]]?.label
+    ? cats[value[0]]?.label
     : `${value.length} categorías`;
 
   return (
@@ -854,7 +882,7 @@ function MultiSelectCategorias({ value, onChange }: { value: string[]; onChange:
             <span className="text-slate-700">Todas las categorías</span>
           </label>
           <div className="border-t border-slate-100 my-1" />
-          {Object.entries(CATEGORIAS).map(([key, cat]) => (
+          {Object.entries(cats).map(([key, cat]) => (
             <label key={key} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer">
               <input type="checkbox" checked={value.includes(key)} onChange={() => toggle(key)} className="h-4 w-4 rounded" />
               <span className="text-slate-700">{cat.label}</span>

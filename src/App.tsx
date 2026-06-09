@@ -11,10 +11,17 @@ import { Proveedores } from './pages/Proveedores';
 import { Inventario } from './pages/Inventario';
 import { Buscador } from './pages/Buscador';
 import { Parametros } from './pages/Parametros';
+import { useCategorias } from './hooks/useCategorias';
+
+function AppInitializer() {
+  useCategorias();
+  return null;
+}
 
 function App() {
   return (
     <BrowserRouter>
+      <AppInitializer />
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
