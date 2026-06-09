@@ -145,6 +145,9 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
       if (field === 'category' || field === 'subcategory') {
         updated.identifier = '';
       }
+      if (field === 'category') {
+        updated.requires_lot = value === 'PP';
+      }
       if (field === 'supplier') {
         const provider = proveedores.find(p => p.name === value || p.code === value);
         updated.supplier_code = provider?.code || '';

@@ -171,10 +171,16 @@ export function InventarioFisico() {
       return;
     }
     const entries: InventarioFisicoItem[] = [];
+    const sinLote: string[] = [];
+
     productos.forEach(product => {
       const rows = counts[product.code] ?? [];
       rows.forEach(row => {
         if (row.cantidad > 0) {
+          if (product.requires_lot && !row.lote?.trim()) {
+            sinLote.push(`${product.code} — ${product.name}`);
+            return;
+          }
           entries.push({
             fecha,
             realizado_por: realizadoPor,
@@ -189,6 +195,10 @@ export function InventarioFisico() {
       });
     });
 
+    if (sinLote.length) {
+      setError(`Los siguientes productos requieren lote:\n${sinLote.join('\n')}`);
+      return;
+    }
     if (!entries.length) {
       setError('No hay conteos registrados para guardar.');
       return;
@@ -405,7 +415,12 @@ export function InventarioFisico() {
                       </>
                     ) : null}
                     <td className="px-4 py-3">
-                      <Input value={row.lote} onChange={e => handleLote(product.code, rowIndex, e.target.value)} placeholder="Lote" />
+                      <Input
+                        value={row.lote}
+                        onChange={e => handleLote(product.code, rowIndex, e.target.value)}
+                        placeholder={product.requires_lot ? 'Lote *' : 'Lote'}
+                        className={product.requires_lot && !row.lote ? 'border-amber-400 bg-amber-50' : ''}
+                      />
                     </td>
                     <td className="px-4 py-3">
                       <Input type="number" min={0} value={row.cantidad} onChange={e => handleCantidad(product.code, rowIndex, Number(e.target.value))} />

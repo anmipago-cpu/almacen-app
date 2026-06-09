@@ -31,6 +31,7 @@ export function Recepcion() {
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [productoError, setProductoError] = useState('');
+  const [loteError, setLoteError] = useState('');
   const [bulkItems, setBulkItems] = useState<Omit<Registro, 'id' | 'created_at'>[]>([]);
   const [bulkErrors, setBulkErrors] = useState<string[]>([]);
   const [bulkName, setBulkName] = useState('');
@@ -79,7 +80,11 @@ export function Recepcion() {
       setProductoError('Selecciona un producto');
       return;
     }
-
+    if (productoSeleccionado.requires_lot && !data.lote?.trim()) {
+      setLoteError('Este producto requiere número de lote para trazabilidad.');
+      return;
+    }
+    setLoteError('');
     setGuardando(true);
     try {
       await guardarRegistro({
@@ -164,6 +169,10 @@ export function Recepcion() {
         if (!(item.contenido_por_unidad > 0)) {
           errors.push(`Fila ${index + 2}: contenido_por_unidad debe ser mayor que 0`);
         }
+        const prod = productos.find(p => p.code === item.producto_code);
+        if (prod?.requires_lot && !item.lote?.trim()) {
+          errors.push(`Fila ${index + 2}: "${prod.name}" requiere lote — columna lote vacía`);
+        }
         if (item.producto_code) {
           codeCounts[item.producto_code] = (codeCounts[item.producto_code] || 0) + 1;
         }
@@ -239,9 +248,11 @@ export function Recepcion() {
               {...register('po')}
             />
             <Input
-              label="Lote"
+              label={productoSeleccionado?.requires_lot ? 'Lote *' : 'Lote'}
               placeholder="Ej: L-12345"
-              {...register('lote')}
+              hint={productoSeleccionado?.requires_lot ? 'Requerido para este producto' : undefined}
+              error={loteError}
+              {...register('lote', { onChange: () => setLoteError('') })}
             />
           </div>
 
@@ -254,6 +265,7 @@ export function Recepcion() {
                 setProductoSeleccionado(producto);
                 setSelectedProduct(producto);
                 setProductoError('');
+                setLoteError('');
                 if (producto) {
                   setValue('contenido_por_unidad', producto.unit_content ?? 1);
                 }
