@@ -14,6 +14,7 @@ export function Inventario() {
   const { productos } = useProductos();
   const [busqueda, setBusqueda] = useState('');
   const [categoriasFiltro, setCategoriasFiltro] = useState<string[]>([]);
+  const [subcategoriasFiltro, setSubcategoriasFiltro] = useState<string[]>([]);
 
   const items = useMemo(() => {
     return inventario.map(item => {
@@ -27,6 +28,20 @@ export function Inventario() {
     });
   }, [inventario, productos]);
 
+  const subcategoriasDisponibles = useMemo(() => {
+    const cats = categoriasFiltro.length > 0 ? categoriasFiltro : Object.keys(CATEGORIAS);
+    const result: { key: string; label: string }[] = [];
+    const seen = new Set<string>();
+    cats.forEach(cat => {
+      const subs = SUBCATEGORIAS[cat] || {};
+      Object.entries(subs).forEach(([key, label]) => {
+        const id = `${cat}:${key}`;
+        if (!seen.has(id)) { seen.add(id); result.push({ key: id, label }); }
+      });
+    });
+    return result;
+  }, [categoriasFiltro]);
+
   const filtered = useMemo(() => {
     const q = busqueda.toLowerCase();
     return items.filter(item => {
@@ -35,9 +50,11 @@ export function Inventario() {
         item.code.toLowerCase().includes(q) ||
         (item.supplier ?? '').toLowerCase().includes(q);
       const matchCat = categoriasFiltro.length === 0 || categoriasFiltro.includes(item.category);
-      return matchText && matchCat;
+      const matchSub = subcategoriasFiltro.length === 0 ||
+        subcategoriasFiltro.includes(`${item.category}:${item.subcategory}`);
+      return matchText && matchCat && matchSub;
     });
-  }, [items, busqueda, categoriasFiltro]);
+  }, [items, busqueda, categoriasFiltro, subcategoriasFiltro]);
 
   function handleExport() {
     exportarExcel(filtered.map(item => ({
@@ -98,10 +115,20 @@ export function Inventario() {
             placeholder="Buscar por código, nombre o proveedor..."
             className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm min-w-[240px] flex-1"
           />
-          <MultiSelectCategorias value={categoriasFiltro} onChange={setCategoriasFiltro} />
-          {(busqueda || categoriasFiltro.length > 0) && (
+          <MultiSelectCategorias
+            value={categoriasFiltro}
+            onChange={v => { setCategoriasFiltro(v); setSubcategoriasFiltro([]); }}
+          />
+          {subcategoriasDisponibles.length > 0 && (
+            <MultiSelectSubcategorias
+              opciones={subcategoriasDisponibles}
+              value={subcategoriasFiltro}
+              onChange={setSubcategoriasFiltro}
+            />
+          )}
+          {(busqueda || categoriasFiltro.length > 0 || subcategoriasFiltro.length > 0) && (
             <button
-              onClick={() => { setBusqueda(''); setCategoriasFiltro([]); }}
+              onClick={() => { setBusqueda(''); setCategoriasFiltro([]); setSubcategoriasFiltro([]); }}
               className="text-xs text-slate-500 hover:text-slate-800 underline"
             >
               Limpiar filtros
@@ -167,6 +194,66 @@ export function Inventario() {
           </div>
         )}
       </Card>
+    </div>
+  );
+}
+
+function MultiSelectSubcategorias({
+  opciones,
+  value,
+  onChange,
+}: {
+  opciones: { key: string; label: string }[];
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  function toggle(key: string) {
+    onChange(value.includes(key) ? value.filter(v => v !== key) : [...value, key]);
+  }
+
+  const label = value.length === 0
+    ? 'Todas las subcategorías'
+    : value.length === 1
+    ? opciones.find(o => o.key === value[0])?.label
+    : `${value.length} subcategorías`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 min-w-[180px] justify-between"
+      >
+        <span>{label}</span>
+        <svg className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 w-52 rounded-2xl border border-slate-200 bg-white shadow-lg py-1">
+          <label className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer">
+            <input type="checkbox" checked={value.length === 0} onChange={() => onChange([])} className="h-4 w-4 rounded" />
+            <span className="text-slate-700">Todas las subcategorías</span>
+          </label>
+          <div className="border-t border-slate-100 my-1" />
+          {opciones.map(({ key, label: lbl }) => (
+            <label key={key} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer">
+              <input type="checkbox" checked={value.includes(key)} onChange={() => toggle(key)} className="h-4 w-4 rounded" />
+              <span className="text-slate-700">{lbl}</span>
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
