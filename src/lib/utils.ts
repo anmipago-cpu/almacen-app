@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 export function formatFecha(fecha: string): string {
   if (!fecha) return '';
   const [y, m, d] = fecha.split('-');
-  return `${d}/${m}/${y}`;
+  return `${m}/${d}/${y}`;
 }
 
 export function formatNumero(n: number | null | undefined, decimales = 2): string {

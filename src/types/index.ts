@@ -15,6 +15,7 @@ export interface Producto {
   unit_base?: string;
   stock_min: number;
   stock_bajo: number;
+  lead_time_semanas?: number;
   requires_lot?: boolean;
   active?: boolean;
   created_at?: string;
@@ -66,6 +67,7 @@ export interface InventarioItem {
   stock_actual: number;
   stock_ultimo_inventario: number;
   promedio_consumo_semanal: number;
+  lead_time_semanas?: number;
   semanas_restantes?: number;
 }
 
