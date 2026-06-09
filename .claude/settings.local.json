@@ -3,7 +3,11 @@
     "allow": [
       "PowerShell(cd \"C:\\\\Users\\\\Andrea Palacio\\\\almacen-app\" && npm run dev 2>&1 &)",
       "Bash(npx vite *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'fix: parsear decimales con coma en CSV de recepciones *)",
+      "Bash(git commit -m 'fix: realtime subscription apunta a recepciones en lugar de registros *)"
     ]
   }
 }
