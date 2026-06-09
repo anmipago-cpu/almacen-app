@@ -9,6 +9,7 @@ import { Historial } from './pages/Historial';
 import { Catalogo } from './pages/Catalogo';
 import { Proveedores } from './pages/Proveedores';
 import { Buscador } from './pages/Buscador';
+import { Parametros } from './pages/Parametros';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="/catalogo" element={<Catalogo />} />
           <Route path="/proveedores" element={<Proveedores />} />
           <Route path="/buscador" element={<Buscador />} />
+          <Route path="/parametros" element={<Parametros />} />
         </Routes>
       </Layout>
     </BrowserRouter>

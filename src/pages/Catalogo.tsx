@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { RefreshCw, PlusCircle, Database, Download } from 'lucide-react';
 import { Header } from '../components/layout/Header';
@@ -11,7 +11,7 @@ import { useProveedores } from '../hooks/useProveedores';
 import { useUnidades } from '../hooks/useUnidades';
 import { supabase } from '../lib/supabase';
 import { exportarExcel } from '../lib/utils';
-import { CATEGORIAS, type Producto } from '../types';
+import { CATEGORIAS, SUBCATEGORIAS, type Producto } from '../types';
 
 
 
@@ -68,10 +68,12 @@ export function Catalogo() {
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [filter, setFilter] = useState('');
-  const [categoriaFiltro, setCategoriaFiltro] = useState('');
+  const [categoriasFiltro, setCategoriasFiltro] = useState<string[]>([]);
+  const [subcategoriasFiltro, setSubcategoriasFiltro] = useState<string[]>([]);
   const [activoFiltro, setActivoFiltro] = useState<'activos' | 'inactivos' | ''>('activos');
   const [editando, setEditando] = useState<Record<string, Partial<Producto>>>({});
   const [editingProductCode, setEditingProductCode] = useState<string | null>(null);
+  const [modoMasivo, setModoMasivo] = useState(false);
 
   const nextIdentifier = useMemo(
     () => getNextIdentifier(productos, form.category, form.subcategory),
@@ -92,15 +94,29 @@ export function Catalogo() {
     }
   }, [code, editingProductCode]);
 
+  const subcategoriasDisponibles = useMemo(() => {
+    const base = categoriasFiltro.length > 0
+      ? productos.filter(p => categoriasFiltro.includes(p.category))
+      : productos;
+    const codigos = [...new Set(base.map(p => p.subcategory).filter(Boolean))].sort() as string[];
+    return codigos.map(codigo => {
+      const nombre = categoriasFiltro.length === 1
+        ? SUBCATEGORIAS[categoriasFiltro[0]]?.[codigo]
+        : undefined;
+      return { codigo, label: nombre ? `${nombre} (${codigo})` : codigo };
+    });
+  }, [productos, categoriasFiltro]);
+
   const filtered = useMemo(() => {
     return productos.filter(p => {
       const query = filter.toLowerCase();
       const matchText = !filter || p.name.toLowerCase().includes(query) || p.code.toLowerCase().includes(query) || p.supplier?.toLowerCase().includes(query);
-      const matchCat = !categoriaFiltro || p.category === categoriaFiltro;
+      const matchCat = categoriasFiltro.length === 0 || categoriasFiltro.includes(p.category);
+      const matchSub = subcategoriasFiltro.length === 0 || subcategoriasFiltro.includes(p.subcategory ?? '');
       const matchActivo = !activoFiltro || (activoFiltro === 'activos' ? p.active !== false : p.active === false);
-      return matchText && matchCat && matchActivo;
+      return matchText && matchCat && matchSub && matchActivo;
     });
-  }, [productos, filter, categoriaFiltro, activoFiltro]);
+  }, [productos, filter, categoriasFiltro, subcategoriasFiltro, activoFiltro]);
 
   function handleExport() {
     exportarExcel(filtered.map(p => ({
@@ -213,7 +229,40 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
     }
   }
 
-  async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
+  function activarModoMasivo() {
+    const nuevosEditando: Record<string, Partial<Producto>> = {};
+    filtered.forEach(p => { nuevosEditando[p.code] = { ...p }; });
+    setEditando(nuevosEditando);
+    setEditingProductCode(null);
+    setModoMasivo(true);
+  }
+
+  function cancelarModoMasivo() {
+    setEditando({});
+    setModoMasivo(false);
+  }
+
+  async function guardarTodos() {
+    const conCambios = Object.entries(editando).filter(([, v]) => Object.keys(v).length > 0);
+    if (!conCambios.length) { cancelarModoMasivo(); return; }
+    setSaving(true);
+    try {
+      for (const [code, cambios] of conCambios) {
+        const { error } = await supabase.from('productos').update(cambios).eq('code', code);
+        if (error) throw error;
+      }
+      toast.success(`${conCambios.length} productos guardados.`);
+      setEditando({});
+      setModoMasivo(false);
+      recargar();
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
     setBulkErrors([]);
     setBulkItems([]);
     const file = event.target.files?.[0];
@@ -479,15 +528,23 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
               placeholder="Buscar..."
               className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
             />
-            <select value={categoriaFiltro} onChange={e => setCategoriaFiltro(e.target.value)} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-              <option value="">Todas las categorías</option>
-              {Object.entries(CATEGORIAS).map(([key, cat]) => <option key={key} value={key}>{cat.label}</option>)}
-            </select>
+            <MultiSelectCategorias value={categoriasFiltro} onChange={v => { setCategoriasFiltro(v); setSubcategoriasFiltro([]); }} />
+            <MultiSelectSubcategorias opciones={subcategoriasDisponibles} value={subcategoriasFiltro} onChange={setSubcategoriasFiltro} />
             <select value={activoFiltro} onChange={e => setActivoFiltro(e.target.value as 'activos' | 'inactivos' | '')} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
               <option value="">Todos</option>
               <option value="activos">Activos</option>
               <option value="inactivos">Inactivos</option>
             </select>
+            {modoMasivo ? (
+              <div className="flex gap-2">
+                <Button size="sm" onClick={guardarTodos} loading={saving}>Guardar todos</Button>
+                <Button size="sm" variant="outline" onClick={cancelarModoMasivo}>Cancelar</Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" onClick={activarModoMasivo}>
+                Editar {filtered.length} registros
+              </Button>
+            )}
           </div>
         </div>
 
@@ -495,42 +552,38 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
           <table className="w-full text-xs">
             <thead className="bg-slate-100 border-b border-slate-300 sticky top-0">
               <tr>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Código</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700 min-w-[260px]">Nombre</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Descripción</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Categoría</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Proveedor</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Código proveedor</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Presentación detalle</th>
-                <th className="px-2 py-2 text-right font-semibold text-slate-700">Cant. x unidad</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Unidad de conteo</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Unidad base</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Stock min</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Stock bajo</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Activo</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Acciones</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-700 whitespace-nowrap min-w-[120px]">Código</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[260px]">Nombre</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[200px]">Descripción</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[150px]">Categoría</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[130px]">Subcategoría</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[180px]">Proveedor</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[110px]">Cód. proveedor</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[160px]">Presentación detalle</th>
+                <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[100px]">Cant. x unidad</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[120px]">Unidad de conteo</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[110px]">Unidad base</th>
+                <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Stock mín.</th>
+                <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Stock bajo</th>
+                <th className="px-3 py-2 text-center font-semibold text-slate-700 min-w-[80px]">Req. lote</th>
+                <th className="px-3 py-2 text-center font-semibold text-slate-700 min-w-[70px]">Activo</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[130px]">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={14} className="p-4 text-center text-slate-500">No hay productos que coincidan.</td></tr>
+                <tr><td colSpan={16} className="p-4 text-center text-slate-500">No hay productos que coincidan.</td></tr>
               ) : filtered.map((product, index) => {
                 const cambios = editando[product.code] || {};
-                const isEditing = editingProductCode === product.code;
+                const isEditing = modoMasivo || editingProductCode === product.code;
                 return (
                   <tr key={product.code} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                    <td className="px-2 py-2 font-mono text-slate-700 whitespace-nowrap">
-                      {isEditing ? (
-                        <input
-                          value={cambios.code ?? product.code}
-                          onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], code: e.target.value } }))}
-                          className="w-full rounded border border-slate-200 px-1 py-0.5 text-xs"
-                        />
-                      ) : (
-                        product.code
-                      )}
+                    <td className="px-2 py-2 whitespace-nowrap">
+                      <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-semibold text-slate-700 tracking-wide border border-slate-200">
+                        {product.code}
+                      </span>
                     </td>
-                    <td className="px-2 py-2 min-w-[260px]">
+                    <td className="px-3 py-2 min-w-[260px]">
                       {isEditing ? (
                         <input
                           value={cambios.name ?? product.name ?? ''}
@@ -538,10 +591,10 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
                           className="w-full rounded border border-slate-200 px-1 py-0.5 text-xs"
                         />
                       ) : (
-                        <span className="text-slate-900">{product.name || '—'}</span>
+                        <span className="text-slate-900 font-medium">{product.name || '—'}</span>
                       )}
                     </td>
-                    <td className="px-2 py-2">
+                    <td className="px-3 py-2 min-w-[200px]">
                       {isEditing ? (
                         <textarea
                           value={cambios.description ?? product.description ?? ''}
@@ -550,7 +603,7 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
                           className="w-full rounded border border-slate-200 px-1 py-0.5 text-xs"
                         />
                       ) : (
-                        <span className="text-slate-600 block max-w-[280px] break-words">{product.description || '—'}</span>
+                        <span className="text-slate-600">{product.description || '—'}</span>
                       )}
                     </td>
                     <td className="px-2 py-2">
@@ -567,6 +620,24 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
                         </select>
                       ) : (
                         <BadgeCategoria category={cambios.category ?? product.category} />
+                      )}
+                    </td>
+                    <td className="px-2 py-2">
+                      {isEditing ? (
+                        <select
+                          value={cambios.subcategory ?? product.subcategory ?? ''}
+                          onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], subcategory: e.target.value } }))}
+                          className="w-full rounded border border-slate-200 px-1 py-0.5 text-xs"
+                        >
+                          <option value="">—</option>
+                          {Object.entries(SUBCATEGORIAS[cambios.category ?? product.category] ?? {}).map(([codigo, nombre]) => (
+                            <option key={codigo} value={codigo}>{nombre} ({codigo})</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-slate-600 text-xs">
+                          {SUBCATEGORIAS[product.category]?.[product.subcategory ?? ''] ?? product.subcategory ?? '—'}
+                        </span>
                       )}
                     </td>
                     <td className="px-2 py-2">
@@ -596,20 +667,12 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
                         <span className="text-slate-600">{product.supplier || '—'}</span>
                       )}
                     </td>
-                    <td className="px-2 py-2">
-                      {isEditing ? (
-                        <input
-                          value={cambios.supplier_code ?? product.supplier_code ?? ''}
-                          readOnly
-                          className="w-full rounded border border-slate-200 bg-slate-100 px-1 py-0.5 text-xs"
-                        />
-                      ) : (
-                        <span className="text-slate-600">
-                          {product.supplier_code || proveedores.find(p => p.name === product.supplier)?.code || '—'}
-                        </span>
-                      )}
+                    <td className="px-2 py-2 whitespace-nowrap">
+                      <span className="text-slate-600 font-mono text-xs">
+                        {product.supplier_code || proveedores.find(p => p.name === product.supplier)?.code || '—'}
+                      </span>
                     </td>
-                    <td className="px-2 py-2">
+                    <td className="px-3 py-2 min-w-[160px]">
                       {isEditing ? (
                         <input
                           value={cambios.presentation ?? product.presentation ?? ''}
@@ -636,23 +699,28 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
                     </td>
                     <td className="px-2 py-2">
                       {isEditing ? (
-                        <input
+                        <select
                           value={cambios.unit ?? product.unit ?? ''}
                           onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], unit: e.target.value } }))}
                           className="w-full rounded border border-slate-200 px-1 py-0.5 text-xs"
-                        />
+                        >
+                          <option value="">—</option>
+                          {unidadesConteo.map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
                       ) : (
                         <span className="text-slate-600">{product.unit || '—'}</span>
                       )}
                     </td>
                     <td className="px-2 py-2">
                       {isEditing ? (
-                        <input
+                        <select
                           value={cambios.unit_base ?? product.unit_base ?? ''}
                           onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], unit_base: e.target.value } }))}
-                          className="w-24 rounded border border-slate-200 px-1 py-0.5 text-xs"
-                          placeholder="BOLSA, TAZA..."
-                        />
+                          className="w-full rounded border border-slate-200 px-1 py-0.5 text-xs"
+                        >
+                          <option value="">—</option>
+                          {unidadesBase.map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
                       ) : (
                         <span className="text-slate-600">{product.unit_base || '—'}</span>
                       )}
@@ -685,6 +753,20 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
                       {isEditing ? (
                         <input
                           type="checkbox"
+                          checked={Boolean(cambios.requires_lot ?? product.requires_lot ?? false)}
+                          onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], requires_lot: e.target.checked } }))}
+                          className="h-4 w-4 accent-blue-600"
+                        />
+                      ) : (
+                        <span className={product.requires_lot ? 'text-blue-700 font-semibold' : 'text-slate-400'}>
+                          {product.requires_lot ? 'Sí' : 'No'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-center">
+                      {isEditing ? (
+                        <input
+                          type="checkbox"
                           checked={Boolean(cambios.active ?? product.active ?? true)}
                           onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], active: e.target.checked } }))}
                           className="h-4 w-4"
@@ -695,7 +777,7 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
                     </td>
                     <td className="px-2 py-2 whitespace-nowrap">
                       <div className="flex items-center gap-1">
-                        {isEditing ? (
+                        {modoMasivo ? null : isEditing ? (
                           <>
                             <Button variant="outline" size="sm" onClick={() => guardarEdicion(product.code)} loading={saving} className="text-xs px-2 py-0.5">
                               Guardar
@@ -729,6 +811,103 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
           </table>
         </div>
       </Card>
+    </div>
+  );
+}
+
+function MultiSelectCategorias({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  function toggle(key: string) {
+    onChange(value.includes(key) ? value.filter(v => v !== key) : [...value, key]);
+  }
+
+  const label = value.length === 0 ? 'Todas las categorías' : value.length === 1
+    ? CATEGORIAS[value[0]]?.label
+    : `${value.length} categorías`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 min-w-[160px] justify-between"
+      >
+        <span>{label}</span>
+        <svg className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 w-52 rounded-2xl border border-slate-200 bg-white shadow-lg py-1">
+          <label className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer">
+            <input type="checkbox" checked={value.length === 0} onChange={() => onChange([])} className="h-4 w-4 rounded" />
+            <span className="text-slate-700">Todas las categorías</span>
+          </label>
+          <div className="border-t border-slate-100 my-1" />
+          {Object.entries(CATEGORIAS).map(([key, cat]) => (
+            <label key={key} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer">
+              <input type="checkbox" checked={value.includes(key)} onChange={() => toggle(key)} className="h-4 w-4 rounded" />
+              <span className="text-slate-700">{cat.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MultiSelectSubcategorias({ opciones, value, onChange }: { opciones: { codigo: string; label: string }[]; value: string[]; onChange: (v: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  function toggle(codigo: string) {
+    onChange(value.includes(codigo) ? value.filter(v => v !== codigo) : [...value, codigo]);
+  }
+
+  const selectedLabels = value.map(v => opciones.find(o => o.codigo === v)?.label ?? v);
+  const btnLabel = value.length === 0 ? 'Todas las subcategorías' : value.length === 1 ? selectedLabels[0] : `${value.length} subcategorías`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 min-w-[180px] justify-between"
+      >
+        <span>{btnLabel}</span>
+        <svg className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 w-52 rounded-2xl border border-slate-200 bg-white shadow-lg py-1">
+          <label className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer">
+            <input type="checkbox" checked={value.length === 0} onChange={() => onChange([])} className="h-4 w-4 rounded" />
+            <span className="text-slate-700">Todas</span>
+          </label>
+          <div className="border-t border-slate-100 my-1" />
+          {opciones.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-slate-400">Sin subcategorías disponibles</p>
+          ) : opciones.map(({ codigo, label }) => (
+            <label key={codigo} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer">
+              <input type="checkbox" checked={value.includes(codigo)} onChange={() => toggle(codigo)} className="h-4 w-4 rounded" />
+              <span className="text-slate-700">{label}</span>
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

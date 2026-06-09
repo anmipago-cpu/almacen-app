@@ -102,17 +102,31 @@ export interface Categoria {
 }
 
 export const CATEGORIAS: Record<string, Categoria> = {
-  'AD': { label: 'Aditivos',     color: 'purple', bg: 'bg-purple-100',  text: 'text-purple-800',  border: 'border-purple-200' },
-  'CH': { label: 'Químicos',     color: 'orange', bg: 'bg-orange-100',  text: 'text-orange-800',  border: 'border-orange-200' },
-  'CL': { label: 'Limpieza',     color: 'yellow', bg: 'bg-yellow-100',  text: 'text-yellow-800',  border: 'border-yellow-200' },
-  'EQ': { label: 'Equipos',      color: 'blue',   bg: 'bg-blue-100',    text: 'text-blue-800',    border: 'border-blue-200'   },
-  'IN': { label: 'Ingredientes', color: 'green',  bg: 'bg-green-100',   text: 'text-green-800',   border: 'border-green-200'  },
-  'LB': { label: 'Laboratorio',  color: 'teal',   bg: 'bg-teal-100',    text: 'text-teal-800',    border: 'border-teal-200'   },
-  'MS': { label: 'Misceláneos',  color: 'gray',   bg: 'bg-gray-100',    text: 'text-gray-700',    border: 'border-gray-200'   },
-  'PP': { label: 'Empaques',     color: 'cyan',   bg: 'bg-cyan-100',    text: 'text-cyan-800',    border: 'border-cyan-200'   },
-  'SF': { label: 'Seguridad',    color: 'red',    bg: 'bg-red-100',     text: 'text-red-800',     border: 'border-red-200'    },
-  'SP': { label: 'Cajas',        color: 'indigo', bg: 'bg-indigo-100',  text: 'text-indigo-800',  border: 'border-indigo-200' },
-  'UT': { label: 'Utensilios',   color: 'slate',  bg: 'bg-slate-100',   text: 'text-slate-700',   border: 'border-slate-200'  },
+  'AD': { label: 'Aditivos',             color: 'purple', bg: 'bg-purple-100',  text: 'text-purple-800',  border: 'border-purple-200' },
+  'CH': { label: 'Insumos Químicos',     color: 'orange', bg: 'bg-orange-100',  text: 'text-orange-800',  border: 'border-orange-200' },
+  'CL': { label: 'Insumos Limpieza',     color: 'yellow', bg: 'bg-yellow-100',  text: 'text-yellow-800',  border: 'border-yellow-200' },
+  'EQ': { label: 'Maquinaria',           color: 'blue',   bg: 'bg-blue-100',    text: 'text-blue-800',    border: 'border-blue-200'   },
+  'IN': { label: 'Ingredientes',         color: 'green',  bg: 'bg-green-100',   text: 'text-green-800',   border: 'border-green-200'  },
+  'LB': { label: 'Insumos Laboratorio',  color: 'teal',   bg: 'bg-teal-100',    text: 'text-teal-800',    border: 'border-teal-200'   },
+  'MS': { label: 'Insumos Manufactura',  color: 'gray',   bg: 'bg-gray-100',    text: 'text-gray-700',    border: 'border-gray-200'   },
+  'PP': { label: 'Empaque Primario',     color: 'cyan',   bg: 'bg-cyan-100',    text: 'text-cyan-800',    border: 'border-cyan-200'   },
+  'SF': { label: 'Insumos Seguridad',    color: 'red',    bg: 'bg-red-100',     text: 'text-red-800',     border: 'border-red-200'    },
+  'SP': { label: 'Empaque Secundario',   color: 'indigo', bg: 'bg-indigo-100',  text: 'text-indigo-800',  border: 'border-indigo-200' },
+  'UT': { label: 'Utensilios',           color: 'slate',  bg: 'bg-slate-100',   text: 'text-slate-700',   border: 'border-slate-200'  },
+};
+
+export const SUBCATEGORIAS: Record<string, Record<string, string>> = {
+  'AD': { '01': 'Aditivos' },
+  'CH': { '01': 'Químicos' },
+  'CL': { '01': 'Limpieza' },
+  'EQ': { '01': 'Producción', '02': 'Control' },
+  'IN': { '01': 'Materia Prima' },
+  'LB': { '01': 'Laboratorio' },
+  'MS': { '01': 'Manufactura' },
+  'PP': { '01': 'Bolsas', '02': 'Envase' },
+  'SF': { '01': 'BPM' },
+  'SP': { '01': 'Cajas', '02': 'Etiquetas' },
+  'UT': { '01': 'Acero Inoxidable', '02': 'Plástico', '03': 'Otros' },
 };
 
 export function getEstado(item: Pick<InventarioItem, 'stock_actual' | 'stock_min' | 'stock_bajo'>): EstadoStock {

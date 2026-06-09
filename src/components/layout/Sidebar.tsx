@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, PackagePlus, PackageMinus,
   Boxes, ClipboardList, ChevronLeft, ChevronRight,
-  Archive, AlertTriangle
+  Archive, AlertTriangle, Settings
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useState } from 'react';
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { to: '/catalogo',       icon: Archive,         label: 'Catálogo'           },
   { to: '/proveedores',    icon: PackagePlus,     label: 'Proveedores'        },
   { to: '/buscador',       icon: ChevronRight,    label: 'Buscador'           },
+  { to: '/parametros',     icon: Settings,        label: 'Parámetros'         },
 ];
 
 export function Sidebar() {
