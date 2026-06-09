@@ -10,7 +10,7 @@ import { getEstado, CATEGORIAS, SUBCATEGORIAS } from '../types';
 import { formatNumero, exportarExcel } from '../lib/utils';
 
 export function Inventario() {
-  const { inventario, loading, recargar } = useInventario();
+  const { inventario, loading, error, recargar } = useInventario();
   const { productos } = useProductos();
   const [busqueda, setBusqueda] = useState('');
   const [categoriasFiltro, setCategoriasFiltro] = useState<string[]>([]);
@@ -139,6 +139,10 @@ export function Inventario() {
 
         {loading ? (
           <div className="p-8 text-center text-slate-500">Cargando inventario...</div>
+        ) : error ? (
+          <div className="p-8 text-center text-rose-500 text-sm">
+            Error al cargar inventario: {error}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
