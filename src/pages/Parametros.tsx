@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
+import { X } from 'lucide-react';
+import { useUnidades } from '../hooks/useUnidades';
 import { toast } from 'sonner';
 import { Search, Database, RefreshCw, UploadCloud, PlusCircle } from 'lucide-react';
 import { Header } from '../components/layout/Header';
@@ -119,6 +121,9 @@ function validateProduct(product: Partial<Producto>) {
 
 export function Parametros() {
   const { productos, loading, recargar, actualizarProducto } = useProductos();
+  const { unidadesConteo, unidadesBase, agregarConteo, eliminarConteo, agregarBase, eliminarBase } = useUnidades();
+  const [nuevaConteo, setNuevaConteo] = useState('');
+  const [nuevaBase, setNuevaBase] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [categoriaFiltro, setCategoriaFiltro] = useState('');
   const [editando, setEditando] = useState<Record<string, Partial<Producto>>>({});
@@ -425,6 +430,58 @@ export function Parametros() {
               </ul>
               <pre className="mt-3 overflow-auto rounded-xl bg-slate-900 px-3 py-3 text-xs text-slate-100">{JSON.stringify(JSON_SAMPLE, null, 2)}</pre>
             </div>
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2 mb-5">
+        <Card>
+          <h2 className="text-base font-semibold text-slate-900 mb-1">Unidades de conteo</h2>
+          <p className="text-sm text-slate-500 mb-4">Las opciones que aparecen al crear un producto en Catálogo.</p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {unidadesConteo.map(u => (
+              <span key={u} className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {u}
+                <button onClick={() => eliminarConteo(u)} className="ml-1 text-slate-400 hover:text-red-500"><X size={12} /></button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={nuevaConteo}
+              onChange={e => setNuevaConteo(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { agregarConteo(nuevaConteo); setNuevaConteo(''); } }}
+              placeholder="Nueva unidad (ej: TOTE)"
+              className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+            <Button size="sm" onClick={() => { agregarConteo(nuevaConteo); setNuevaConteo(''); }}>
+              Agregar
+            </Button>
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="text-base font-semibold text-slate-900 mb-1">Unidades base</h2>
+          <p className="text-sm text-slate-500 mb-4">El contenido dentro de cada unidad de conteo (BOLSA, TAZA, TAPA…).</p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {unidadesBase.map(u => (
+              <span key={u} className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {u}
+                <button onClick={() => eliminarBase(u)} className="ml-1 text-slate-400 hover:text-red-500"><X size={12} /></button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={nuevaBase}
+              onChange={e => setNuevaBase(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { agregarBase(nuevaBase); setNuevaBase(''); } }}
+              placeholder="Nueva unidad base (ej: TAPA)"
+              className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+            <Button size="sm" onClick={() => { agregarBase(nuevaBase); setNuevaBase(''); }}>
+              Agregar
+            </Button>
           </div>
         </Card>
       </div>

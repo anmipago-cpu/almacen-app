@@ -8,11 +8,12 @@ import { Input, Select, Textarea } from '../components/ui/Input';
 import { BadgeCategoria } from '../components/ui/Badge';
 import { useProductos } from '../hooks/useProductos';
 import { useProveedores } from '../hooks/useProveedores';
+import { useUnidades } from '../hooks/useUnidades';
 import { supabase } from '../lib/supabase';
 import { exportarExcel } from '../lib/utils';
 import { CATEGORIAS, type Producto } from '../types';
 
-const UNIDADES = ['CAJA', 'BULTO', 'PALLET', 'UNIDAD', 'ROLLO', 'SET', 'DRUM', 'SACK'];
+
 
 const EMPTY_FORM = {
   code: '',
@@ -59,6 +60,7 @@ function getNextIdentifier(productos: Producto[], category: string, subcategory:
 export function Catalogo() {
   const { productos, recargar } = useProductos();
   const { proveedores } = useProveedores();
+  const { unidadesConteo, unidadesBase } = useUnidades();
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [bulkItems, setBulkItems] = useState<Producto[]>([]);
   const [bulkErrors, setBulkErrors] = useState<string[]>([]);
@@ -404,10 +406,14 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
             <Input label="Código del proveedor" value={form.supplier_code} readOnly />
             <Input label="Presentación" value={form.presentation} onChange={e => handleField('presentation', e.target.value)} />
             <Select label="Unidad de conteo" value={form.unit} onChange={e => handleField('unit', e.target.value)}>
-              {UNIDADES.map(unit => <option key={unit} value={unit}>{unit}</option>)}
+              <option value="">Selecciona unidad</option>
+              {unidadesConteo.map(u => <option key={u} value={u}>{u}</option>)}
             </Select>
             <Input label="Contenido por unidad" type="number" value={form.unit_content} onChange={e => handleField('unit_content', e.target.value)} />
-            <Input label="Unidad base" value={form.unit_base} onChange={e => handleField('unit_base', e.target.value)} />
+            <Select label="Unidad base" value={form.unit_base} onChange={e => handleField('unit_base', e.target.value)}>
+              <option value="">Selecciona unidad base</option>
+              {unidadesBase.map(u => <option key={u} value={u}>{u}</option>)}
+            </Select>
             <Input label="Stock mínimo" type="number" value={form.stock_min} onChange={e => handleField('stock_min', e.target.value)} />
             <Input label="Stock bajo" type="number" value={form.stock_bajo} onChange={e => handleField('stock_bajo', e.target.value)} />
             <div className="flex items-center gap-3">
@@ -497,7 +503,8 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
                 <th className="px-2 py-2 text-left font-semibold text-slate-700">Código proveedor</th>
                 <th className="px-2 py-2 text-left font-semibold text-slate-700">Presentación detalle</th>
                 <th className="px-2 py-2 text-right font-semibold text-slate-700">Cant. x unidad</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Unidad</th>
+                <th className="px-2 py-2 text-left font-semibold text-slate-700">Unidad de conteo</th>
+                <th className="px-2 py-2 text-left font-semibold text-slate-700">Unidad base</th>
                 <th className="px-2 py-2 text-left font-semibold text-slate-700">Stock min</th>
                 <th className="px-2 py-2 text-left font-semibold text-slate-700">Stock bajo</th>
                 <th className="px-2 py-2 text-left font-semibold text-slate-700">Activo</th>
@@ -506,7 +513,7 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={13} className="p-4 text-center text-slate-500">No hay productos que coincidan.</td></tr>
+                <tr><td colSpan={14} className="p-4 text-center text-slate-500">No hay productos que coincidan.</td></tr>
               ) : filtered.map((product, index) => {
                 const cambios = editando[product.code] || {};
                 const isEditing = editingProductCode === product.code;
@@ -636,6 +643,18 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
                         />
                       ) : (
                         <span className="text-slate-600">{product.unit || '—'}</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2">
+                      {isEditing ? (
+                        <input
+                          value={cambios.unit_base ?? product.unit_base ?? ''}
+                          onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], unit_base: e.target.value } }))}
+                          className="w-24 rounded border border-slate-200 px-1 py-0.5 text-xs"
+                          placeholder="BOLSA, TAZA..."
+                        />
+                      ) : (
+                        <span className="text-slate-600">{product.unit_base || '—'}</span>
                       )}
                     </td>
                     <td className="px-2 py-2">
