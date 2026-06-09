@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
-import { X, ChevronDown, ChevronRight } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useUnidades } from '../hooks/useUnidades';
 import { useCategorias } from '../hooks/useCategorias';
 import { toast } from 'sonner';
@@ -628,7 +628,6 @@ interface AdminCategoriasProps {
 }
 
 function AdminCategorias({ categoriasDB, subcategoriasDB, recargar, crearCategoria, actualizarCategoria, eliminarCategoria, crearSubcategoria, actualizarSubcategoria, eliminarSubcategoria }: AdminCategoriasProps) {
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [editCat, setEditCat] = useState<Record<string, Partial<CategoriaDB>>>({});
   const [editSub, setEditSub] = useState<Record<number, string>>({});
   const [nuevaCat, setNuevaCat] = useState({ code: '', label: '', color: 'slate' });
@@ -687,82 +686,82 @@ function AdminCategorias({ categoriasDB, subcategoriasDB, recargar, crearCategor
       </div>
 
       {/* Lista de categorías */}
-      <div className="space-y-2 mb-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 mb-5">
         {allCats.map(cat => {
           const colors = COLOR_MAP[cat.color] ?? COLOR_MAP['slate'];
           const subs = subcategoriasDB.filter(s => s.categoria_code === cat.code);
-          const isExpanded = expanded === cat.code;
           const cambios = editCat[cat.code] || {};
           return (
             <div key={cat.code} className="rounded-2xl border border-slate-200 overflow-hidden">
-              <div className="flex items-center gap-3 px-4 py-3 bg-slate-50">
-                <button onClick={() => setExpanded(isExpanded ? null : cat.code)} className="text-slate-400 hover:text-slate-700">
-                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                </button>
-                {/* Código */}
-                <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold border ${colors.bg} ${colors.text} ${colors.border}`}>
-                  {cat.code}
-                </span>
-                {/* Label editable */}
+              {/* Header categoría */}
+              <div className={`flex items-center gap-2 px-3 py-2.5 ${colors.bg} border-b ${colors.border}`}>
+                <span className={`font-mono text-xs font-bold ${colors.text}`}>{cat.code}</span>
                 <input
                   value={cambios.label ?? cat.label}
                   onChange={e => setEditCat(prev => ({ ...prev, [cat.code]: { ...prev[cat.code], label: e.target.value } }))}
-                  className="flex-1 bg-transparent text-sm font-medium text-slate-800 border-b border-transparent focus:border-blue-400 focus:outline-none px-1"
+                  className={`flex-1 bg-transparent text-sm font-semibold ${colors.text} border-b border-transparent focus:border-current focus:outline-none`}
                 />
-                {/* Color picker */}
                 <select
                   value={cambios.color ?? cat.color}
                   onChange={e => setEditCat(prev => ({ ...prev, [cat.code]: { ...prev[cat.code], color: e.target.value } }))}
-                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600"
+                  className="text-xs border border-white/50 rounded px-1 py-0.5 bg-white/60 text-slate-600"
                 >
                   {COLOR_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 {Object.keys(cambios).length > 0 && (
-                  <button onClick={() => guardarCat(cat.code)} disabled={saving} className="text-xs font-medium text-blue-600 hover:underline">Guardar</button>
+                  <button onClick={() => guardarCat(cat.code)} disabled={saving}
+                    className="text-xs font-bold text-white bg-blue-500 hover:bg-blue-600 rounded px-1.5 py-0.5">
+                    ✓
+                  </button>
                 )}
-                <span className="text-xs text-slate-400">{subs.length} subcat.</span>
               </div>
 
-              {isExpanded && (
-                <div className="px-10 py-3 space-y-2 border-t border-slate-100 bg-white">
-                  {subs.map(sub => (
-                    <div key={sub.id} className="flex items-center gap-3 text-sm">
-                      <span className="font-mono text-xs text-slate-400 w-8">{sub.code}</span>
-                      <input
-                        value={editSub[sub.id!] ?? sub.label}
-                        onChange={e => setEditSub(prev => ({ ...prev, [sub.id!]: e.target.value }))}
-                        className="flex-1 border-b border-transparent focus:border-blue-400 focus:outline-none text-slate-700 text-sm px-1"
-                      />
-                      {editSub[sub.id!] !== undefined && editSub[sub.id!] !== sub.label && (
-                        <button
-                          onClick={async () => {
-                            await actualizarSubcategoria(sub.id!, { label: editSub[sub.id!] });
-                            setEditSub(prev => { const n = { ...prev }; delete n[sub.id!]; return n; });
-                            toast.success('Subcategoría actualizada');
-                          }}
-                          className="text-xs text-blue-600 hover:underline"
-                        >Guardar</button>
-                      )}
-                      <button
-                        onClick={async () => { if (confirm(`Desactivar subcategoría "${sub.label}"?`)) await eliminarSubcategoria(sub.id!); }}
-                        className="text-slate-300 hover:text-red-500"
-                      ><X size={14} /></button>
-                    </div>
-                  ))}
-                  {/* Nueva subcategoría */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <span className="font-mono text-xs text-slate-300 w-8">+</span>
+              {/* Subcategorías */}
+              <div className="px-3 py-2 space-y-1.5 bg-white min-h-[60px]">
+                {subs.length === 0 && (
+                  <p className="text-xs text-slate-300 italic">Sin subcategorías</p>
+                )}
+                {subs.map(sub => (
+                  <div key={sub.id} className="flex items-center gap-2">
+                    <span className="font-mono text-[10px] text-slate-400 w-6 shrink-0">{sub.code}</span>
                     <input
-                      value={nuevaSub[cat.code] || ''}
-                      onChange={e => setNuevaSub(prev => ({ ...prev, [cat.code]: e.target.value }))}
-                      onKeyDown={e => { if (e.key === 'Enter') handleNuevaSub(cat.code); }}
-                      placeholder="Nueva subcategoría..."
-                      className="flex-1 text-sm border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      value={editSub[sub.id!] ?? sub.label}
+                      onChange={e => setEditSub(prev => ({ ...prev, [sub.id!]: e.target.value }))}
+                      className="flex-1 text-xs text-slate-700 border-b border-transparent focus:border-blue-400 focus:outline-none bg-transparent"
                     />
-                    <Button size="sm" variant="outline" onClick={() => handleNuevaSub(cat.code)} disabled={saving}>Agregar</Button>
+                    {editSub[sub.id!] !== undefined && editSub[sub.id!] !== sub.label && (
+                      <button
+                        onClick={async () => {
+                          await actualizarSubcategoria(sub.id!, { label: editSub[sub.id!] });
+                          setEditSub(prev => { const n = { ...prev }; delete n[sub.id!]; return n; });
+                          toast.success('Actualizada');
+                        }}
+                        className="text-[10px] text-blue-600 hover:underline shrink-0"
+                      >Guardar</button>
+                    )}
+                    <button
+                      onClick={async () => { if (confirm(`Desactivar "${sub.label}"?`)) await eliminarSubcategoria(sub.id!); }}
+                      className="text-slate-200 hover:text-red-400 shrink-0"
+                    ><X size={12} /></button>
                   </div>
+                ))}
+                {/* Nueva subcategoría inline */}
+                <div className="flex items-center gap-1 pt-1 border-t border-slate-100">
+                  <input
+                    value={nuevaSub[cat.code] || ''}
+                    onChange={e => setNuevaSub(prev => ({ ...prev, [cat.code]: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') handleNuevaSub(cat.code); }}
+                    placeholder="+ Nueva subcategoría"
+                    className="flex-1 text-xs text-slate-500 placeholder-slate-300 border-none focus:outline-none bg-transparent"
+                  />
+                  {(nuevaSub[cat.code] || '').trim() && (
+                    <button onClick={() => handleNuevaSub(cat.code)} disabled={saving}
+                      className="text-[10px] font-medium text-blue-500 hover:underline shrink-0">
+                      Agregar
+                    </button>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
