@@ -186,7 +186,7 @@ export function Recepcion() {
       const parsed = parseCsvRecepciones(text);
       const errors: string[] = [];
       const valid: Omit<Registro, 'id' | 'created_at'>[] = [];
-      const codeCounts: Record<string, number> = {};
+      const keyCounts: Record<string, number> = {};
 
       parsed.forEach((item, index) => {
         const rowNum = index + 2;
@@ -209,14 +209,16 @@ export function Recepcion() {
           rowErrors++;
         }
         if (item.producto_code) {
-          codeCounts[item.producto_code] = (codeCounts[item.producto_code] || 0) + 1;
+          const key = `${item.producto_code}||${item.lote || ''}`;
+          keyCounts[key] = (keyCounts[key] || 0) + 1;
         }
         if (rowErrors === 0) valid.push(item);
       });
 
-      Object.entries(codeCounts).forEach(([code, count]) => {
+      Object.entries(keyCounts).forEach(([key, count]) => {
         if (count > 1) {
-          errors.push(`Código repetido en CSV: ${code}`);
+          const [code, lote] = key.split('||');
+          errors.push(`Fila duplicada: ${code}${lote ? ` lote ${lote}` : ' (sin lote)'}`);
         }
       });
 
