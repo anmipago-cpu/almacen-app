@@ -119,7 +119,7 @@ export function Catalogo() {
     })), 'catalogo');
   }
 
-  function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
+function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
     setForm(prev => {
       const updated = { ...prev, [field]: value };
       if (field === 'category' || field === 'subcategory') {
@@ -356,7 +356,7 @@ export function Catalogo() {
         subtitle="Administra el catálogo completo de productos con carga individual o masiva."
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" icon={<Download size={16} />} onClick={handleExport} size="sm">
+<Button variant="outline" icon={<Download size={16} />} onClick={handleExport} size="sm">
               Exportar Excel
             </Button>
             <Button variant="outline" icon={<RefreshCw size={16} />} onClick={recargar}>
@@ -488,7 +488,8 @@ export function Catalogo() {
                 <th className="px-2 py-2 text-left font-semibold text-slate-700">Categoría</th>
                 <th className="px-2 py-2 text-left font-semibold text-slate-700">Proveedor</th>
                 <th className="px-2 py-2 text-left font-semibold text-slate-700">Código proveedor</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-700">Presentación</th>
+                <th className="px-2 py-2 text-left font-semibold text-slate-700">Presentación detalle</th>
+                <th className="px-2 py-2 text-right font-semibold text-slate-700">Cant. x unidad</th>
                 <th className="px-2 py-2 text-left font-semibold text-slate-700">Unidad</th>
                 <th className="px-2 py-2 text-left font-semibold text-slate-700">Stock min</th>
                 <th className="px-2 py-2 text-left font-semibold text-slate-700">Stock bajo</th>
@@ -498,7 +499,7 @@ export function Catalogo() {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={12} className="p-4 text-center text-slate-500">No hay productos que coincidan.</td></tr>
+                <tr><td colSpan={13} className="p-4 text-center text-slate-500">No hay productos que coincidan.</td></tr>
               ) : filtered.map((product, index) => {
                 const cambios = editando[product.code] || {};
                 const isEditing = editingProductCode === product.code;
@@ -589,7 +590,9 @@ export function Catalogo() {
                           className="w-full rounded border border-slate-200 bg-slate-100 px-1 py-0.5 text-xs"
                         />
                       ) : (
-                        <span className="text-slate-600">{product.supplier_code || '—'}</span>
+                        <span className="text-slate-600">
+                          {product.supplier_code || proveedores.find(p => p.name === product.supplier)?.code || '—'}
+                        </span>
                       )}
                     </td>
                     <td className="px-2 py-2">
@@ -601,6 +604,20 @@ export function Catalogo() {
                         />
                       ) : (
                         <span className="text-slate-600">{product.presentation || '—'}</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          min={0.001}
+                          step="any"
+                          value={cambios.unit_content ?? product.unit_content ?? 1}
+                          onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], unit_content: Number(e.target.value) } }))}
+                          className="w-20 rounded border border-slate-200 px-1 py-0.5 text-xs text-right"
+                        />
+                      ) : (
+                        <span className="font-mono font-semibold text-slate-800">{product.unit_content ?? 1}</span>
                       )}
                     </td>
                     <td className="px-2 py-2">

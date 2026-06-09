@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(cd \"C:\\\\Users\\\\Andrea Palacio\\\\almacen-app\" && npm run dev 2>&1 &)"
+      "PowerShell(cd \"C:\\\\Users\\\\Andrea Palacio\\\\almacen-app\" && npm run dev 2>&1 &)",
+      "Bash(npx vite *)"
     ]
   }
 }
