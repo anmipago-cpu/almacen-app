@@ -307,6 +307,11 @@ export function Recepcion() {
               <option value="Otro / No identificado">Otro / No identificado</option>
             </select>
             {errors.proveedor && <p className="text-xs text-red-600">{errors.proveedor.message}</p>}
+            {proveedores.length === 0 && (
+              <p className="text-xs text-amber-600">
+                No hay proveedores registrados. Ve a <strong>Proveedores</strong> y créalos primero, o selecciona "Otro / No identificado".
+              </p>
+            )}
           </div>
 
           {/* Producto */}
@@ -331,31 +336,36 @@ export function Recepcion() {
 
           {/* Info del producto seleccionado */}
           {productoSeleccionado && (
-            <div className="grid gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm sm:grid-cols-3">
-              <div className="flex items-start gap-2">
-                <Package size={14} className="mt-0.5 text-blue-400 shrink-0" />
-                <div>
-                  <p className="text-blue-500 text-xs">Unidad de conteo</p>
-                  <p className="font-semibold text-blue-900">{productoSeleccionado.unit || 'UNIDAD'}</p>
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 overflow-hidden text-sm">
+              {/* Banner principal: unidad de conteo */}
+              <div className="bg-blue-600 px-4 py-2.5 flex items-center gap-3">
+                <Package size={16} className="text-blue-100 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-blue-100 text-xs">Ingresa la cantidad en:</p>
+                  <p className="text-white font-bold text-base leading-tight">
+                    {productoSeleccionado.unit || 'UNIDAD'}
+                    <span className="text-blue-200 font-normal text-xs ml-2">(unidad de conteo)</span>
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-blue-200 text-xs">1 {productoSeleccionado.unit || 'UNIDAD'} =</p>
+                  <p className="text-white font-semibold">{productoSeleccionado.unit_content ?? 1} {productoSeleccionado.unit_base || 'unidades'}</p>
                 </div>
               </div>
-              <div className="flex items-start gap-2">
-                <Tag size={14} className="mt-0.5 text-blue-400 shrink-0" />
-                <div>
-                  <p className="text-blue-500 text-xs">Contenido por unidad</p>
-                  <p className="font-semibold text-blue-900">{productoSeleccionado.unit_content ?? 1} {productoSeleccionado.unit_base || ''}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Tag size={14} className="mt-0.5 text-blue-400 shrink-0" />
+              {/* Detalle */}
+              <div className="grid grid-cols-2 gap-3 p-3">
                 <div>
                   <p className="text-blue-500 text-xs">Presentación</p>
-                  <p className="font-semibold text-blue-900">{productoSeleccionado.presentation || '—'}</p>
+                  <p className="font-medium text-blue-900 text-xs mt-0.5">{productoSeleccionado.presentation || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-blue-500 text-xs">Unidad base</p>
+                  <p className="font-medium text-blue-900 text-xs mt-0.5">{productoSeleccionado.unit_base || '—'}</p>
                 </div>
               </div>
               {productoSeleccionado.requires_lot && (
-                <div className="sm:col-span-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 font-medium">
-                  ⚠ Este producto requiere número de lote para trazabilidad
+                <div className="mx-3 mb-3 rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800 font-semibold flex items-center gap-2">
+                  <span className="text-red-500">⚠</span> Lote OBLIGATORIO — este producto requiere número de lote
                 </div>
               )}
             </div>
