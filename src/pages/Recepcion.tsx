@@ -272,8 +272,8 @@ export function Recepcion() {
         subtitle="Registra ingresos con unidad natural y total en unidades base."
       />
 
-      <div className="grid gap-5 xl:grid-cols-[560px_1fr] items-start">
       <div className="space-y-5">
+      <div className="grid gap-5 xl:grid-cols-2 items-start">
       <Card>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
 
@@ -528,14 +528,16 @@ export function Recepcion() {
           )}
         </div>
       </Card>
-      </div>{/* end left panel */}
+      </div>{/* end top grid */}
 
-      {/* Historial del mes */}
+      {/* Historial del mes — ancho completo */}
       <Card className="!p-0 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
+        <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">Recepciones del mes</h2>
-            <p className="text-xs text-slate-500 mt-0.5">{historial.length} registros</p>
+            <h2 className="text-base font-semibold text-slate-900">Historial de recepciones</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {historial.length} {historial.length === 1 ? 'recepción' : 'recepciones'} en {MESES[mesFiltro.mes - 1]} {mesFiltro.año}
+            </p>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -546,7 +548,7 @@ export function Recepcion() {
               })}
               className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
             ><ChevronLeft size={16} /></button>
-            <span className="text-sm font-medium text-slate-700 min-w-[130px] text-center">
+            <span className="text-sm font-semibold text-slate-700 min-w-[150px] text-center">
               {MESES[mesFiltro.mes - 1]} {mesFiltro.año}
             </span>
             <button
@@ -559,42 +561,77 @@ export function Recepcion() {
             ><ChevronRight size={16} /></button>
           </div>
         </div>
+
         {loadingHistorial ? (
-          <div className="p-6 text-center text-sm text-slate-400">Cargando...</div>
+          <div className="p-8 text-center text-sm text-slate-400">Cargando...</div>
         ) : historial.length === 0 ? (
-          <div className="p-6 text-center text-sm text-slate-400">No hay recepciones en {MESES[mesFiltro.mes - 1]} {mesFiltro.año}.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  {['Fecha', 'Código', 'Nombre', 'Lote', 'Proveedor', 'Cant.', 'Unidad', 'Total base'].map(h => (
-                    <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {historial.map((rec, i) => (
-                  <tr key={rec.id ?? i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                    <td className="px-3 py-2 whitespace-nowrap text-slate-600">{formatFecha(rec.fecha)}</td>
-                    <td className="px-3 py-2">
-                      <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5">{rec.producto_code}</span>
-                    </td>
-                    <td className="px-3 py-2 text-slate-800 max-w-[180px] truncate">{rec.producto_name}</td>
-                    <td className="px-3 py-2 text-slate-500 text-xs">{rec.lote || '—'}</td>
-                    <td className="px-3 py-2 text-slate-500 text-xs max-w-[120px] truncate">{rec.proveedor || '—'}</td>
-                    <td className="px-3 py-2 text-right font-mono font-semibold text-slate-800">{formatNumero(rec.cantidad_unidad_natural, 2)}</td>
-                    <td className="px-3 py-2 text-slate-500 text-xs">{rec.unidad_natural || '—'}</td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-700">{formatNumero(rec.total_unidades_base, 0)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="p-8 text-center text-sm text-slate-400">
+            No hay recepciones registradas en {MESES[mesFiltro.mes - 1]} {mesFiltro.año}.
           </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Fecha</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Código</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Lote</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Proveedor</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Cant. conteo</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">U. conteo</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Cant. base</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">U. base</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {historial.map((rec, i) => {
+                    const prod = productos.find(p => p.code === rec.producto_code);
+                    return (
+                    <tr key={rec.id ?? i} className="hover:bg-blue-50/30 transition-colors">
+                      <td className="px-4 py-3 whitespace-nowrap text-slate-500 text-xs">{formatFecha(rec.fecha)}</td>
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5">{rec.producto_code}</span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-800 font-medium max-w-[200px] truncate">{rec.producto_name}</td>
+                      <td className="px-4 py-3">
+                        {rec.lote
+                          ? <span className="inline-flex items-center rounded-full bg-blue-100 border border-blue-200 px-2 py-0.5 text-xs font-medium text-blue-800">{rec.lote}</span>
+                          : <span className="text-slate-300 text-xs">—</span>
+                        }
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 text-xs max-w-[130px] truncate">{rec.proveedor || '—'}</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-slate-800">{formatNumero(rec.cantidad_unidad_natural, 2)}</td>
+                      <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{rec.unidad_natural || prod?.unit || '—'}</td>
+                      <td className="px-4 py-3 text-right font-mono font-semibold text-emerald-700">{formatNumero(rec.total_unidades_base, 0)}</td>
+                      <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{prod?.unit_base || '—'}</td>
+                    </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="bg-slate-50 border-t-2 border-slate-200">
+                  <tr>
+                    <td colSpan={5} className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      Total del mes · {historial.length} recepciones
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">
+                      {formatNumero(historial.reduce((s, r) => s + (r.cantidad_unidad_natural || 0), 0), 2)}
+                    </td>
+                    <td />
+                    <td className="px-4 py-3 text-right font-mono font-bold text-emerald-700">
+                      {formatNumero(historial.reduce((s, r) => s + (r.total_unidades_base || 0), 0), 0)}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </>
         )}
       </Card>
 
-      </div>{/* end grid */}
+      </div>{/* end outer space-y */}
     </div>
   );
 }
