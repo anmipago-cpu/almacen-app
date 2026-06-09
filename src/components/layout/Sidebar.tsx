@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, PackagePlus, PackageMinus,
   Boxes, ClipboardList, ChevronLeft, ChevronRight,
-  Archive, AlertTriangle, Settings
+  Archive, AlertTriangle, Settings, BarChart2
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useState } from 'react';
@@ -10,6 +10,7 @@ import { useState } from 'react';
 const NAV_ITEMS = [
   { to: '/',               icon: LayoutDashboard, label: 'Dashboard'          },
   { to: '/recepciones',    icon: PackagePlus,     label: 'Recepciones'        },
+  { to: '/inventario',        icon: BarChart2,      label: 'Inventario'         },
   { to: '/inventario-fisico', icon: Boxes,         label: 'Inventario Físico'  },
   { to: '/consumo-semanal', icon: PackageMinus,   label: 'Consumo Semanal'    },
   { to: '/alarmas',        icon: AlertTriangle,   label: 'Alarmas'            },

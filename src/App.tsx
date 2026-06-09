@@ -8,6 +8,7 @@ import { Alarmas } from './pages/Alarmas';
 import { Historial } from './pages/Historial';
 import { Catalogo } from './pages/Catalogo';
 import { Proveedores } from './pages/Proveedores';
+import { Inventario } from './pages/Inventario';
 import { Buscador } from './pages/Buscador';
 import { Parametros } from './pages/Parametros';
 
@@ -20,6 +21,7 @@ function App() {
           <Route path="/recepciones" element={<Recepcion />} />
           <Route path="/consumo-semanal" element={<ConsumoSemanal />} />
           <Route path="/inventario-fisico" element={<InventarioFisico />} />
+          <Route path="/inventario" element={<Inventario />} />
           <Route path="/alarmas" element={<Alarmas />} />
           <Route path="/historial" element={<Historial />} />
           <Route path="/catalogo" element={<Catalogo />} />

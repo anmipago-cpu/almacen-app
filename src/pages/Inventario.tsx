@@ -1,267 +1,218 @@
-import { useState, useMemo } from 'react';
-import { useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel, flexRender, type ColumnDef, type SortingState } from '@tanstack/react-table';
-import { ArrowUpDown, Download, Search, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
+import { useMemo, useRef, useEffect, useState } from 'react';
+import { Download, RefreshCw } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { BadgeCategoria, BadgeEstado } from '../components/ui/Badge';
 import { useInventario } from '../hooks/useInventario';
-import { useRegistros } from '../hooks/useRegistros';
-import { CATEGORIAS, getEstado, type InventarioItem } from '../types';
-import { formatNumero, exportarExcel, hoy } from '../lib/utils';
-
-const ESTADOS = ['', 'AGOTADO', 'CRITICO', 'BAJO', 'OK'];
+import { useProductos } from '../hooks/useProductos';
+import { getEstado, CATEGORIAS } from '../types';
+import { formatNumero, exportarExcel } from '../lib/utils';
 
 export function Inventario() {
   const { inventario, loading, recargar } = useInventario();
-  const { guardarRegistro } = useRegistros({ porPagina: 1 });
+  const { productos } = useProductos();
   const [busqueda, setBusqueda] = useState('');
-  const [categoriaFiltro, setCategoriaFiltro] = useState('');
-  const [estadoFiltro, setEstadoFiltro] = useState('');
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [ajustando, setAjustando] = useState<string | null>(null);
-  const [ajusteValor, setAjusteValor] = useState<Record<string, string>>({});
+  const [categoriasFiltro, setCategoriasFiltro] = useState<string[]>([]);
 
-  const datos = useMemo(() => {
-    return inventario.filter(i => {
-      const busq = busqueda.toLowerCase();
-      const matchBusq = !busqueda || i.name.toLowerCase().includes(busq) || i.code.toLowerCase().includes(busq);
-      const matchCat  = !categoriaFiltro || i.category === categoriaFiltro;
-      const matchEst  = !estadoFiltro || getEstado(i) === estadoFiltro;
-      return matchBusq && matchCat && matchEst;
+  const items = useMemo(() => {
+    return inventario.map(item => {
+      const prod = productos.find(p => p.code === item.code);
+      const unit_content = prod?.unit_content ?? 1;
+      const unit = prod?.unit || item.unit || 'UNIDAD';
+      const unit_base = prod?.unit_base || '';
+      const cantidad_conteo = unit_content > 0 ? item.stock_actual / unit_content : item.stock_actual;
+      return { ...item, unit_content, unit, unit_base, cantidad_conteo };
     });
-  }, [inventario, busqueda, categoriaFiltro, estadoFiltro]);
+  }, [inventario, productos]);
 
-  async function guardarAjuste(item: InventarioItem) {
-    const nuevoStock = Number(ajusteValor[item.code]);
-    if (isNaN(nuevoStock)) return;
-    const diff = nuevoStock - item.stock_actual;
-    if (diff === 0) { setAjustando(null); return; }
-
-    try {
-      const tipo = diff > 0 ? 'RECEPCION' : 'AJUSTE';
-      await guardarRegistro({
-        fecha: hoy(),
-        tipo,
-        producto_code: item.code,
-        producto_name: item.name,
-        cantidad_unidades: Math.abs(diff),
-        total_unidades: Math.abs(diff),
-        contenido_por_unidad: 1,
-        observaciones: 'Ajuste manual desde inventario',
-        recibido_por: '',
-      });
-      toast.success(`Ajuste guardado para ${item.name}`);
-      recargar();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Error al ajustar');
-    } finally {
-      setAjustando(null);
-    }
-  }
-
-  const columns = useMemo<ColumnDef<InventarioItem>[]>(() => [
-    {
-      accessorKey: 'code',
-      header: 'Código',
-      cell: ({ getValue }) => <span className="font-mono text-xs text-slate-500">{getValue() as string}</span>,
-    },
-    {
-      accessorKey: 'category',
-      header: 'Categoría',
-      cell: ({ getValue }) => <BadgeCategoria category={getValue() as string} />,
-    },
-    {
-      accessorKey: 'name',
-      header: ({ column }) => (
-        <button className="flex items-center gap-1 hover:text-slate-800" onClick={() => column.toggleSorting()}>
-          Producto <ArrowUpDown size={12} />
-        </button>
-      ),
-      cell: ({ row }) => (
-        <div>
-          <div className="font-medium text-slate-800 text-sm">{row.original.name}</div>
-          {row.original.supplier && <div className="text-xs text-slate-400">{row.original.supplier}</div>}
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'unit',
-      header: 'Unidad',
-      cell: ({ getValue }) => <span className="text-xs text-slate-500">{getValue() as string || '—'}</span>,
-    },
-    {
-      accessorKey: 'total_recibido',
-      header: ({ column }) => (
-        <button className="flex items-center gap-1 hover:text-slate-800 ml-auto" onClick={() => column.toggleSorting()}>
-          Recibido <ArrowUpDown size={12} />
-        </button>
-      ),
-      cell: ({ getValue }) => <span className="font-mono text-sm text-right block">{formatNumero(getValue() as number)}</span>,
-    },
-    {
-      accessorKey: 'total_consumido',
-      header: 'Consumido',
-      cell: ({ getValue }) => <span className="font-mono text-sm text-right block text-red-600">{formatNumero(getValue() as number)}</span>,
-    },
-    {
-      accessorKey: 'stock_actual',
-      header: ({ column }) => (
-        <button className="flex items-center gap-1 hover:text-slate-800 ml-auto" onClick={() => column.toggleSorting()}>
-          Stock <ArrowUpDown size={12} />
-        </button>
-      ),
-      cell: ({ row }) => {
-        const item = row.original;
-        const isEdit = ajustando === item.code;
-        if (isEdit) {
-          return (
-            <div className="flex items-center gap-1">
-              <input
-                type="number"
-                step="any"
-                defaultValue={item.stock_actual}
-                onChange={e => setAjusteValor(v => ({ ...v, [item.code]: e.target.value }))}
-                className="w-20 px-1 py-0.5 text-sm border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                autoFocus
-                onKeyDown={e => { if (e.key === 'Enter') guardarAjuste(item); if (e.key === 'Escape') setAjustando(null); }}
-              />
-              <button onClick={() => guardarAjuste(item)} className="text-xs text-blue-600 font-medium hover:underline">OK</button>
-            </div>
-          );
-        }
-        return (
-          <button
-            title="Clic para ajustar"
-            onClick={() => { setAjustando(item.code); setAjusteValor(v => ({ ...v, [item.code]: String(item.stock_actual) })); }}
-            className="font-mono font-semibold text-sm hover:bg-blue-50 hover:text-blue-700 rounded px-1 transition-colors"
-          >
-            {formatNumero(item.stock_actual)}
-          </button>
-        );
-      },
-    },
-    {
-      accessorKey: 'promedio_semanal',
-      header: 'Prom/Sem.',
-      cell: ({ getValue }) => <span className="font-mono text-xs text-slate-500 text-right block">{formatNumero(getValue() as number, 1)}</span>,
-    },
-    {
-      id: 'estado',
-      header: 'Estado',
-      cell: ({ row }) => <BadgeEstado estado={getEstado(row.original)} />,
-    },
-  ], [ajustando, ajusteValor]);
-
-  const table = useReactTable({
-    data: datos,
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  });
+  const filtered = useMemo(() => {
+    const q = busqueda.toLowerCase();
+    return items.filter(item => {
+      const matchText = !busqueda ||
+        item.name.toLowerCase().includes(q) ||
+        item.code.toLowerCase().includes(q) ||
+        (item.supplier ?? '').toLowerCase().includes(q);
+      const matchCat = categoriasFiltro.length === 0 || categoriasFiltro.includes(item.category);
+      return matchText && matchCat;
+    });
+  }, [items, busqueda, categoriasFiltro]);
 
   function handleExport() {
-    exportarExcel(datos.map(i => ({
-      Código: i.code, Categoría: i.category, Producto: i.name, Proveedor: i.supplier || '',
-      Unidad: i.unit || '', Recibido: i.total_recibido, Consumido: i.total_consumido,
-      'Stock Actual': i.stock_actual, 'Stock Min': i.stock_min, Estado: getEstado(i),
+    exportarExcel(filtered.map(item => ({
+      Código: item.code,
+      Nombre: item.name,
+      Categoría: CATEGORIAS[item.category]?.label || item.category,
+      [`Cant. (${item.unit || 'UNIDAD'})`]: formatNumero(item.cantidad_conteo, 2),
+      'Unidad conteo': item.unit || 'UNIDAD',
+      'Cant. base': formatNumero(item.stock_actual, 0),
+      'Unidad base': item.unit_base,
+      'Stock mín': item.stock_min,
+      Estado: getEstado(item),
     })), 'inventario');
   }
+
+  const totalProductos = filtered.length;
+  const conStock = filtered.filter(i => i.stock_actual > 0).length;
+  const agotados = filtered.filter(i => i.stock_actual <= 0).length;
 
   return (
     <div>
       <Header
-        title="Inventario"
-        subtitle={`${inventario.length} productos totales`}
+        title="Inventario Actual"
+        subtitle="Stock en tiempo real calculado desde recepciones y consumos."
         actions={
-          <>
-            <Button variant="outline" icon={<RefreshCw size={15} />} onClick={recargar} size="sm">Actualizar</Button>
-            <Button variant="outline" icon={<Download size={15} />} onClick={handleExport} size="sm">Exportar Excel</Button>
-          </>
+          <div className="flex gap-2">
+            <Button variant="outline" icon={<Download size={16} />} onClick={handleExport} size="sm">
+              Exportar Excel
+            </Button>
+            <Button variant="outline" icon={<RefreshCw size={16} />} onClick={recargar} size="sm">
+              Actualizar
+            </Button>
+          </div>
         }
       />
 
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center">
+          <p className="text-2xl font-bold text-slate-900">{totalProductos}</p>
+          <p className="text-xs text-slate-500 mt-1">Productos</p>
+        </div>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+          <p className="text-2xl font-bold text-emerald-700">{conStock}</p>
+          <p className="text-xs text-emerald-600 mt-1">Con stock</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
+          <p className="text-2xl font-bold text-slate-500">{agotados}</p>
+          <p className="text-xs text-slate-400 mt-1">Sin stock</p>
+        </div>
+      </div>
+
       <Card className="!p-0 overflow-hidden">
-        {/* Filtros */}
-        <div className="p-4 border-b border-slate-100 flex flex-wrap gap-3 items-center">
-          <div className="relative flex-1 min-w-48">
-            <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-            <input
-              value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
-              placeholder="Buscar por nombre o código..."
-              className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
+        <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+          <input
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar por código, nombre o proveedor..."
+            className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm min-w-[240px] flex-1"
+          />
+          <MultiSelectCategorias value={categoriasFiltro} onChange={setCategoriasFiltro} />
+          {(busqueda || categoriasFiltro.length > 0) && (
             <button
-              onClick={() => setCategoriaFiltro('')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${!categoriaFiltro ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+              onClick={() => { setBusqueda(''); setCategoriasFiltro([]); }}
+              className="text-xs text-slate-500 hover:text-slate-800 underline"
             >
-              Todas
+              Limpiar filtros
             </button>
-            {Object.entries(CATEGORIAS).map(([key, cat]) => (
-              <button
-                key={key}
-                onClick={() => setCategoriaFiltro(categoriaFiltro === key ? '' : key)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${categoriaFiltro === key ? `${cat.bg} ${cat.text} ${cat.border}` : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-          <select
-            value={estadoFiltro}
-            onChange={e => setEstadoFiltro(e.target.value)}
-            className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Todos los estados</option>
-            {ESTADOS.filter(Boolean).map(e => <option key={e} value={e}>{e}</option>)}
-          </select>
+          )}
+          <span className="text-xs text-slate-400 ml-auto">{filtered.length} productos</span>
         </div>
 
-        {/* Tabla */}
         {loading ? (
           <div className="p-8 text-center text-slate-500">Cargando inventario...</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-100">
-                {table.getHeaderGroups().map(hg => (
-                  <tr key={hg.id}>
-                    {hg.headers.map(h => (
-                      <th key={h.id} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
+              <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[120px]">Código</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[220px]">Nombre</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[150px]">Categoría</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[120px]">Cant. conteo</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[100px]">Unidad</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[120px]">Cant. base</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[100px]">Unidad base</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[90px]">Stock mín</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[90px]">Estado</th>
+                </tr>
               </thead>
               <tbody>
-                {table.getRowModel().rows.length === 0 ? (
-                  <tr><td colSpan={9} className="text-center py-10 text-slate-400">Sin productos que mostrar</td></tr>
-                ) : table.getRowModel().rows.map((row, idx) => (
-                  <tr key={row.id} className={`border-b border-slate-50 hover:bg-blue-50/30 transition-colors ${idx % 2 === 0 ? '' : 'bg-slate-50/30'}`}>
-                    {row.getVisibleCells().map(cell => (
-                      <td key={cell.id} className="px-4 py-2.5">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="p-8 text-center text-slate-400">
+                      {items.length === 0 ? 'No hay stock registrado aún.' : 'No hay productos que coincidan con los filtros.'}
+                    </td>
+                  </tr>
+                ) : filtered.map((item, index) => (
+                  <tr key={item.code} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                    <td className="px-4 py-3">
+                      <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5">
+                        {item.code}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-900 font-medium">{item.name}</td>
+                    <td className="px-4 py-3"><BadgeCategoria category={item.category} /></td>
+                    <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">
+                      {formatNumero(item.cantidad_conteo, 2)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 text-xs">{item.unit || 'UNIDAD'}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-700">
+                      {formatNumero(item.stock_actual, 0)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 text-xs">{item.unit_base || '—'}</td>
+                    <td className="px-4 py-3 text-right text-slate-600">{item.stock_min}</td>
+                    <td className="px-4 py-3 text-center">
+                      <BadgeEstado estado={getEstado(item)} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-
-        <div className="px-4 py-3 border-t border-slate-100 text-xs text-slate-400">
-          Mostrando {datos.length} de {inventario.length} productos · Haz clic en el stock para ajustarlo manualmente
-        </div>
       </Card>
+    </div>
+  );
+}
+
+function MultiSelectCategorias({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  function toggle(key: string) {
+    onChange(value.includes(key) ? value.filter(v => v !== key) : [...value, key]);
+  }
+
+  const label = value.length === 0
+    ? 'Todas las categorías'
+    : value.length === 1
+    ? CATEGORIAS[value[0]]?.label
+    : `${value.length} categorías`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 min-w-[160px] justify-between"
+      >
+        <span>{label}</span>
+        <svg className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 w-52 rounded-2xl border border-slate-200 bg-white shadow-lg py-1">
+          <label className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer">
+            <input type="checkbox" checked={value.length === 0} onChange={() => onChange([])} className="h-4 w-4 rounded" />
+            <span className="text-slate-700">Todas las categorías</span>
+          </label>
+          <div className="border-t border-slate-100 my-1" />
+          {Object.entries(CATEGORIAS).map(([key, cat]) => (
+            <label key={key} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer">
+              <input type="checkbox" checked={value.includes(key)} onChange={() => toggle(key)} className="h-4 w-4 rounded" />
+              <span className="text-slate-700">{cat.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
