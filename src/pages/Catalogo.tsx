@@ -308,11 +308,13 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
         const values = line.split(',').map(value => value.trim());
         const record: Record<string, string> = {};
         headers.forEach((field, index) => { record[field] = values[index] || ''; });
+        const reqLot = record.requires_lot || record.requiere_lote || record.lote || '';
         return {
           code: record.code || record.codigo || '',
           name: record.name || record.nombre || '',
           description: record.description || record.descripcion || '',
           category: record.category || record.categoria || '',
+          subcategory: record.subcategory || record.subcategoria || '',
           supplier: record.supplier || record.proveedor || '',
           manufacturer: record.manufacturer || record.fabricante || '',
           presentation: record.presentation || record.presentacion || '',
@@ -322,6 +324,7 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
           unit_base: record.unit_base || record.unidad_base || 'UNIDAD',
           stock_min: Number(record.stock_min || record.stockmin || 0),
           stock_bajo: Number(record.stock_bajo || record.stockbajo || 0),
+          requires_lot: reqLot ? (reqLot.toLowerCase() === 'true' || reqLot.toLowerCase() === 'si' || reqLot === '1') : false,
           active: (record.active || record.activo) ? ((record.active || record.activo).toLowerCase() === 'true' || (record.active || record.activo).toLowerCase() === 'si' || (record.active || record.activo) === '1') : true,
         } as Producto;
       });
@@ -524,7 +527,7 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
             <label className="block text-sm font-medium text-slate-700">Archivo</label>
             <input type="file" accept=".csv" onChange={handleFile} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" />
             <div className="rounded-md bg-blue-50 border border-blue-100 p-3 text-sm text-blue-800">
-              Columnas esperadas: <strong>code, name, description, category, supplier, manufacturer, presentation, supplier_code, active</strong>
+              Columnas esperadas: <strong>code, name, description, category, subcategory, supplier, manufacturer, presentation, unit, unit_content, unit_base, requires_lot, active</strong>
             </div>
             {bulkName && <p className="text-sm text-slate-500">Archivo: {bulkName}</p>}
             {bulkErrors.length > 0 && (
