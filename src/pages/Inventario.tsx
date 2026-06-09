@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button';
 import { BadgeCategoria, BadgeEstado } from '../components/ui/Badge';
 import { useInventario } from '../hooks/useInventario';
 import { useProductos } from '../hooks/useProductos';
-import { getEstado, CATEGORIAS } from '../types';
+import { getEstado, CATEGORIAS, SUBCATEGORIAS } from '../types';
 import { formatNumero, exportarExcel } from '../lib/utils';
 
 export function Inventario() {
@@ -21,8 +21,9 @@ export function Inventario() {
       const unit_content = prod?.unit_content ?? 1;
       const unit = prod?.unit || item.unit || 'UNIDAD';
       const unit_base = prod?.unit_base || '';
+      const subcategory = prod?.subcategory || '';
       const cantidad_conteo = unit_content > 0 ? item.stock_actual / unit_content : item.stock_actual;
-      return { ...item, unit_content, unit, unit_base, cantidad_conteo };
+      return { ...item, unit_content, unit, unit_base, subcategory, cantidad_conteo };
     });
   }, [inventario, productos]);
 
@@ -43,6 +44,7 @@ export function Inventario() {
       Código: item.code,
       Nombre: item.name,
       Categoría: CATEGORIAS[item.category]?.label || item.category,
+      Subcategoría: SUBCATEGORIAS[item.category]?.[item.subcategory] || item.subcategory || '',
       [`Cant. (${item.unit || 'UNIDAD'})`]: formatNumero(item.cantidad_conteo, 2),
       'Unidad conteo': item.unit || 'UNIDAD',
       'Cant. base': formatNumero(item.stock_actual, 0),
@@ -118,8 +120,9 @@ export function Inventario() {
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[120px]">Código</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[220px]">Nombre</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[150px]">Categoría</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[130px]">Subcategoría</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[120px]">Cant. conteo</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[100px]">Unidad</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[100px]">Unidad conteo</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[120px]">Cant. base</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[100px]">Unidad base</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[90px]">Stock mín</th>
@@ -129,7 +132,7 @@ export function Inventario() {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="p-8 text-center text-slate-400">
+                    <td colSpan={10} className="p-8 text-center text-slate-400">
                       {items.length === 0 ? 'No hay stock registrado aún.' : 'No hay productos que coincidan con los filtros.'}
                     </td>
                   </tr>
@@ -142,14 +145,17 @@ export function Inventario() {
                     </td>
                     <td className="px-4 py-3 text-slate-900 font-medium">{item.name}</td>
                     <td className="px-4 py-3"><BadgeCategoria category={item.category} /></td>
+                    <td className="px-4 py-3 text-slate-600 text-xs">
+                      {SUBCATEGORIAS[item.category]?.[item.subcategory] || item.subcategory || '—'}
+                    </td>
                     <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">
                       {formatNumero(item.cantidad_conteo, 2)}
                     </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">{item.unit || 'UNIDAD'}</td>
+                    <td className="px-4 py-3 text-slate-500 text-xs font-medium">{item.unit || 'UNIDAD'}</td>
                     <td className="px-4 py-3 text-right font-mono text-slate-700">
                       {formatNumero(item.stock_actual, 0)}
                     </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">{item.unit_base || '—'}</td>
+                    <td className="px-4 py-3 text-slate-500 text-xs font-medium">{item.unit_base || '—'}</td>
                     <td className="px-4 py-3 text-right text-slate-600">{item.stock_min}</td>
                     <td className="px-4 py-3 text-center">
                       <BadgeEstado estado={getEstado(item)} />
