@@ -37,6 +37,8 @@ export function Recepcion() {
   const [bulkItems, setBulkItems] = useState<Omit<Registro, 'id' | 'created_at'>[]>([]);
   const [bulkErrors, setBulkErrors] = useState<string[]>([]);
   const [bulkName, setBulkName] = useState('');
+  const [bulkResponsable, setBulkResponsable] = useState('');
+  const [bulkFecha, setBulkFecha] = useState(hoy());
   const [importing, setImporting] = useState(false);
 
   const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm<FormData>({
@@ -170,28 +172,28 @@ export function Recepcion() {
 
       parsed.forEach((item, index) => {
         const rowNum = index + 2;
+        let rowErrors = 0;
+
         if (!item.producto_code) {
           errors.push(`Fila ${rowNum}: falta código de producto`);
-          return;
-        }
-        if (!item.producto_name) {
-          errors.push(`Fila ${rowNum}: código "${item.producto_code}" no existe en el catálogo`);
-          return;
-        }
-        if (!item.recibido_por) {
-          errors.push(`Fila ${rowNum}: falta recibido_por`);
+          rowErrors++;
+        } else if (!item.producto_name) {
+          errors.push(`Fila ${rowNum}: código "${item.producto_code}" no existe en el catálogo — verifica que esté creado`);
+          rowErrors++;
         }
         if (!(item.cantidad_unidad_natural > 0)) {
           errors.push(`Fila ${rowNum}: cantidad debe ser mayor que 0`);
+          rowErrors++;
         }
         const prod = productos.find(p => p.code === item.producto_code);
         if (prod?.requires_lot && !item.lote?.trim()) {
-          errors.push(`Fila ${rowNum}: "${prod.name}" requiere lote — columna lote vacía`);
+          errors.push(`Fila ${rowNum}: "${prod.name}" requiere número de lote`);
+          rowErrors++;
         }
         if (item.producto_code) {
           codeCounts[item.producto_code] = (codeCounts[item.producto_code] || 0) + 1;
         }
-        valid.push(item);
+        if (rowErrors === 0) valid.push(item);
       });
 
       Object.entries(codeCounts).forEach(([code, count]) => {
@@ -217,16 +219,29 @@ export function Recepcion() {
       toast.error('No hay recepciones válidas para importar.');
       return;
     }
+    if (!bulkResponsable.trim()) {
+      toast.error('Ingresa el nombre del responsable antes de importar.');
+      return;
+    }
     setImporting(true);
     try {
-      const { error } = await supabase.from('registros').insert(bulkItems);
+      const payload = bulkItems.map(item => ({
+        ...item,
+        fecha: item.fecha || bulkFecha,
+        recibido_por: item.recibido_por || bulkResponsable,
+      }));
+      const { error } = await supabase.from('recepciones').insert(payload);
       if (error) throw error;
-      toast.success(`${bulkItems.length} recepciones importadas correctamente.`);
+      toast.success(`${payload.length} recepciones importadas correctamente.`);
       setBulkItems([]);
       setBulkName('');
       setBulkErrors([]);
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Error al importar recepciones');
+      const msg = error instanceof Error ? error.message
+        : typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message: unknown }).message)
+          : JSON.stringify(error);
+      toast.error(msg || 'Error al importar recepciones');
     } finally {
       setImporting(false);
     }
@@ -386,29 +401,89 @@ export function Recepcion() {
       <Card>
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-slate-900">Carga masiva de recepciones</h2>
-          <p className="text-sm text-slate-500">Importa un CSV con los registros de recepciones ya efectuadas.</p>
+          <p className="text-sm text-slate-500">Importa un CSV. Solo se cargan filas cuyo código exista en el catálogo.</p>
         </div>
         <div className="space-y-4">
-          <label className="block text-sm font-medium text-slate-700">Archivo CSV</label>
-          <input type="file" accept=".csv" onChange={handleBulkFile} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" />
-          <div className="rounded-md bg-blue-50 border border-blue-100 p-3 text-sm text-blue-800">
-            Columnas esperadas: <strong>producto_code, producto_name, fecha, recibido_por, cantidad_recibida, contenido_por_unidad</strong><br />
-            Opcionales: <strong>po, lote, proveedor, observaciones</strong>
+
+          {/* Instrucciones */}
+          <div className="rounded-xl bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800 space-y-1">
+            <p className="font-semibold">Formato del archivo CSV:</p>
+            <p className="font-mono text-xs bg-blue-100 rounded px-2 py-1">producto_code, cantidad_recibida, lote, recibido_por</p>
+            <ul className="list-disc list-inside text-blue-700 space-y-0.5 text-xs mt-1">
+              <li><strong>producto_code</strong>: código exacto del catálogo (ej: SP-01-001)</li>
+              <li><strong>cantidad_recibida</strong>: número de cajas/unidades de conteo</li>
+              <li><strong>lote</strong>: obligatorio para Empaque Primario (PP), vacío para los demás</li>
+              <li><strong>recibido_por</strong>: opcional si llenas el campo "Responsable" abajo</li>
+            </ul>
           </div>
-          {bulkName && <p className="text-sm text-slate-500">Archivo: {bulkName}</p>}
+
+          {/* Responsable y fecha globales */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Input
+              label="Responsable *"
+              placeholder="Nombre de quien recibe (aplica a todas las filas)"
+              value={bulkResponsable}
+              onChange={e => setBulkResponsable(e.target.value)}
+            />
+            <Input
+              label="Fecha"
+              type="date"
+              value={bulkFecha}
+              onChange={e => setBulkFecha(e.target.value)}
+            />
+          </div>
+
+          {/* Selector de archivo */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Archivo CSV</label>
+            <input type="file" accept=".csv,.txt" onChange={handleBulkFile} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" />
+          </div>
+
+          {/* Errores */}
           {bulkErrors.length > 0 && (
-            <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              <p className="font-semibold">Errores</p>
-              <ul className="mt-2 list-disc pl-5 space-y-1">
-                {bulkErrors.map((error, index) => <li key={index}>{error}</li>)}
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <p className="font-semibold mb-2">Filas con problemas (no se importarán):</p>
+              <ul className="list-disc pl-5 space-y-0.5">
+                {bulkErrors.map((e, i) => <li key={i}>{e}</li>)}
               </ul>
             </div>
           )}
+
+          {/* Preview */}
           {bulkItems.length > 0 && (
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <p>{bulkItems.length} recepciones listas para importar.</p>
-              <Button variant="primary" icon={<Database size={16} />} onClick={importBulkRecepciones} loading={importing}>
-                Importar recepciones
+            <div className="space-y-3">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 font-medium">
+                ✓ {bulkItems.length} filas válidas listas para importar
+                {bulkErrors.length > 0 && ` · ${bulkErrors.length} omitidas por errores`}
+              </div>
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      {['Código', 'Nombre', 'Cantidad', 'Unidad', 'Total base', 'Lote'].map(h => (
+                        <th key={h} className="px-3 py-2 text-left font-semibold text-slate-600">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bulkItems.map((item, i) => {
+                      const prod = productos.find(p => p.code === item.producto_code);
+                      return (
+                        <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                          <td className="px-3 py-1.5 font-mono text-slate-700">{item.producto_code}</td>
+                          <td className="px-3 py-1.5 text-slate-900">{item.producto_name}</td>
+                          <td className="px-3 py-1.5 text-right font-mono">{item.cantidad_unidad_natural}</td>
+                          <td className="px-3 py-1.5 text-slate-500">{item.unidad_natural}</td>
+                          <td className="px-3 py-1.5 text-right font-mono font-semibold">{formatNumero(item.total_unidades_base, 0)}</td>
+                          <td className="px-3 py-1.5 text-slate-500">{item.lote || (prod?.requires_lot ? '⚠' : '—')}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <Button icon={<Database size={16} />} onClick={importBulkRecepciones} loading={importing} disabled={!bulkResponsable.trim()}>
+                Importar {bulkItems.length} recepciones
               </Button>
             </div>
           )}
