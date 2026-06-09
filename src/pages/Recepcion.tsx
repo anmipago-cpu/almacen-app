@@ -1,13 +1,14 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Save, RotateCcw, Database } from 'lucide-react';
+import { Save, RotateCcw, Database, Package, Tag } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Textarea } from '../components/ui/Input';
 import { ComboboxProducto } from '../components/ui/Combobox';
 import { useProductos } from '../hooks/useProductos';
+import { useProveedores } from '../hooks/useProveedores';
 import { useRegistros } from '../hooks/useRegistros';
 import { useSearchContext } from '../context/SearchContext';
 import { supabase } from '../lib/supabase';
@@ -17,15 +18,16 @@ import type { Producto, Registro } from '../types';
 interface FormData {
   fecha: string;
   recibido_por: string;
+  proveedor: string;
   po: string;
   lote: string;
   cantidad_recibida: number;
-  contenido_por_unidad: number;
   observaciones: string;
 }
 
 export function Recepcion() {
   const { productos, loading: loadingProd } = useProductos();
+  const { proveedores } = useProveedores();
   const { guardarRegistro } = useRegistros({ porPagina: 1 });
   const { selectedProduct, setSelectedProduct } = useSearchContext();
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
@@ -41,10 +43,10 @@ export function Recepcion() {
     defaultValues: {
       fecha: hoy(),
       recibido_por: '',
+      proveedor: '',
       po: '',
       lote: '',
       cantidad_recibida: 1,
-      contenido_por_unidad: 1,
       observaciones: '',
     }
   });
@@ -52,25 +54,26 @@ export function Recepcion() {
   useEffect(() => {
     if (selectedProduct && selectedProduct.code !== productoSeleccionado?.code) {
       setProductoSeleccionado(selectedProduct);
-      setValue('contenido_por_unidad', selectedProduct.unit_content ?? 1);
+      setValue('proveedor', selectedProduct.supplier || '');
     }
   }, [selectedProduct, productoSeleccionado?.code, setValue]);
 
   const cantidad = watch('cantidad_recibida') || 0;
-  const contenido = watch('contenido_por_unidad') || 1;
-  const totalUnidades = Number(cantidad) * Number(contenido);
+  const contenidoProducto = productoSeleccionado?.unit_content ?? 1;
+  const totalUnidades = Number(cantidad) * contenidoProducto;
 
   function limpiarFormulario() {
     setProductoSeleccionado(null);
     setProductoError('');
+    setLoteError('');
     setSelectedProduct(null);
     reset({
       fecha: hoy(),
       recibido_por: '',
+      proveedor: '',
       po: '',
       lote: '',
       cantidad_recibida: 1,
-      contenido_por_unidad: 1,
       observaciones: '',
     });
   }
@@ -94,15 +97,15 @@ export function Recepcion() {
         producto_name: productoSeleccionado.name,
         lote: data.lote,
         pallet: data.po,
-        proveedor: productoSeleccionado.supplier,
+        proveedor: data.proveedor,
         recibido_por: data.recibido_por,
         cantidad_unidades: Number(data.cantidad_recibida),
         total_unidades: totalUnidades,
-        contenido_por_unidad: Number(data.contenido_por_unidad) || 1,
+        contenido_por_unidad: contenidoProducto,
         observaciones: data.observaciones,
       });
 
-      toast.success(`Recepción guardada: ${productoSeleccionado.name} — ${formatNumero(totalUnidades)} ${productoSeleccionado.unit || 'unidades'}`);
+      toast.success(`Recepción guardada: ${productoSeleccionado.name} — ${formatNumero(totalUnidades)} ${productoSeleccionado.unit_base || productoSeleccionado.unit || 'unidades'}`);
       limpiarFormulario();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Error al guardar la recepción');
@@ -121,6 +124,8 @@ export function Recepcion() {
       headers.forEach((field, index) => { record[field] = values[index] || ''; });
       const productoCode = record.producto_code || record.code || record.codigo || '';
       const found = productos.find(prod => prod.code === productoCode);
+      const cantidad = Number(record.cantidad_recibida || record.cantidad || record.cantidad_unidades || 0);
+      const contenido = Number(record.contenido_por_unidad || record.contenido || found?.unit_content || 1);
       return {
         fecha: record.fecha || hoy(),
         tipo: 'RECEPCION' as const,
@@ -130,9 +135,9 @@ export function Recepcion() {
         pallet: record.po || record.pallet || '',
         proveedor: record.proveedor || found?.supplier || '',
         recibido_por: record.recibido_por || record.recibidor || '',
-        cantidad_unidades: Number(record.cantidad_recibida || record.cantidad || record.cantidad_unidades || 0),
-        contenido_por_unidad: Number(record.contenido_por_unidad || record.contenido || 1),
-        total_unidades: Number(record.cantidad_recibida || record.cantidad || 0) * Number(record.contenido_por_unidad || record.contenido || 1),
+        cantidad_unidades: cantidad,
+        contenido_por_unidad: contenido,
+        total_unidades: cantidad * contenido,
         observaciones: record.observaciones || record.observacion || '',
       };
     });
@@ -226,6 +231,8 @@ export function Recepcion() {
 
       <Card>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+
+          {/* Fecha y Responsable */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
               label="Fecha"
@@ -234,13 +241,82 @@ export function Recepcion() {
               error={errors.fecha?.message}
             />
             <Input
-              label="Recibido por"
+              label="Recibido por *"
               placeholder="Nombre del responsable"
               {...register('recibido_por', { required: 'Requerido' })}
               error={errors.recibido_por?.message}
             />
           </div>
 
+          {/* Proveedor */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700">Proveedor *</label>
+            <select
+              {...register('proveedor', { required: 'Selecciona un proveedor' })}
+              className="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">Selecciona proveedor</option>
+              {proveedores.map(p => (
+                <option key={p.code} value={p.name}>{p.name}</option>
+              ))}
+              <option value="Otro / No identificado">Otro / No identificado</option>
+            </select>
+            {errors.proveedor && <p className="text-xs text-red-600">{errors.proveedor.message}</p>}
+          </div>
+
+          {/* Producto */}
+          <div>
+            <ComboboxProducto
+              label="Producto *"
+              productos={productos}
+              value={productoSeleccionado}
+              onChange={(producto) => {
+                setProductoSeleccionado(producto);
+                setSelectedProduct(producto);
+                setProductoError('');
+                setLoteError('');
+                if (producto) {
+                  setValue('proveedor', producto.supplier || '');
+                }
+              }}
+              disabled={loadingProd}
+              error={productoError}
+            />
+          </div>
+
+          {/* Info del producto seleccionado */}
+          {productoSeleccionado && (
+            <div className="grid gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm sm:grid-cols-3">
+              <div className="flex items-start gap-2">
+                <Package size={14} className="mt-0.5 text-blue-400 shrink-0" />
+                <div>
+                  <p className="text-blue-500 text-xs">Unidad de conteo</p>
+                  <p className="font-semibold text-blue-900">{productoSeleccionado.unit || 'UNIDAD'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <Tag size={14} className="mt-0.5 text-blue-400 shrink-0" />
+                <div>
+                  <p className="text-blue-500 text-xs">Contenido por unidad</p>
+                  <p className="font-semibold text-blue-900">{productoSeleccionado.unit_content ?? 1} {productoSeleccionado.unit_base || ''}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <Tag size={14} className="mt-0.5 text-blue-400 shrink-0" />
+                <div>
+                  <p className="text-blue-500 text-xs">Presentación</p>
+                  <p className="font-semibold text-blue-900">{productoSeleccionado.presentation || '—'}</p>
+                </div>
+              </div>
+              {productoSeleccionado.requires_lot && (
+                <div className="sm:col-span-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 font-medium">
+                  ⚠ Este producto requiere número de lote para trazabilidad
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PO y Lote */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
               label="PO / Número de orden"
@@ -250,80 +326,39 @@ export function Recepcion() {
             <Input
               label={productoSeleccionado?.requires_lot ? 'Lote *' : 'Lote'}
               placeholder="Ej: L-12345"
-              hint={productoSeleccionado?.requires_lot ? 'Requerido para este producto' : undefined}
+              hint={productoSeleccionado?.requires_lot ? 'Obligatorio para este producto' : 'Opcional'}
               error={loteError}
               {...register('lote', { onChange: () => setLoteError('') })}
             />
           </div>
 
+          {/* Cantidad */}
           <div>
-            <ComboboxProducto
-              label="Producto"
-              productos={productos}
-              value={productoSeleccionado}
-              onChange={(producto) => {
-                setProductoSeleccionado(producto);
-                setSelectedProduct(producto);
-                setProductoError('');
-                setLoteError('');
-                if (producto) {
-                  setValue('contenido_por_unidad', producto.unit_content ?? 1);
-                }
-              }}
-              disabled={loadingProd}
-              error={productoError}
-            />
-          </div>
-
-          {productoSeleccionado && (
-            <div className="grid gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 sm:grid-cols-2">
-              <div>
-                <p className="text-slate-500">Código</p>
-                <p className="font-mono font-semibold text-slate-900">{productoSeleccionado.code}</p>
-              </div>
-              <div>
-                <p className="text-slate-500">Proveedor</p>
-                <p className="font-semibold text-slate-900">{productoSeleccionado.supplier || '—'}</p>
-              </div>
-              <div>
-                <p className="text-slate-500">Presentación estándar</p>
-                <p className="font-semibold text-slate-900">{productoSeleccionado.presentation || '—'}</p>
-              </div>
-              <div>
-                <p className="text-slate-500">Unidad de conteo</p>
-                <p className="font-semibold text-slate-900">{productoSeleccionado.unit || 'UNIDAD'}</p>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
-              label="Cantidad recibida"
+              label={`Cantidad recibida ${productoSeleccionado ? `(${productoSeleccionado.unit || 'unidades'})` : ''} *`}
               type="number"
               min={0.001}
               step="any"
               {...register('cantidad_recibida', { required: 'Requerido', min: { value: 0.001, message: 'Mayor a 0' } })}
               error={errors.cantidad_recibida?.message}
             />
-            <Input
-              label="Contenido por unidad"
-              type="number"
-              min={0.001}
-              step="any"
-              {...register('contenido_por_unidad', { required: 'Requerido', min: { value: 0.001, message: 'Mayor a 0' } })}
-              error={errors.contenido_por_unidad?.message}
-            />
           </div>
 
-          <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-center">
-            <p className="text-sm text-slate-600">Total en unidades base</p>
-            <p className="mt-2 text-4xl font-bold text-emerald-700 font-mono">{formatNumero(totalUnidades)}</p>
+          {/* Total calculado */}
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-600">Total en unidades base</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {Number(cantidad)} {productoSeleccionado?.unit || 'unidades'} × {contenidoProducto} = {formatNumero(totalUnidades)} {productoSeleccionado?.unit_base || ''}
+              </p>
+            </div>
+            <p className="text-4xl font-bold text-emerald-700 font-mono">{formatNumero(totalUnidades)}</p>
           </div>
 
           <Textarea
             label="Observaciones"
             placeholder="Notas sobre la recepción..."
-            rows={4}
+            rows={3}
             {...register('observaciones')}
           />
 
@@ -332,7 +367,7 @@ export function Recepcion() {
               Guardar Recepción
             </Button>
             <Button type="button" variant="outline" icon={<RotateCcw size={16} />} onClick={limpiarFormulario}>
-              Limpiar formulario
+              Limpiar
             </Button>
           </div>
         </form>

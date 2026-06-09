@@ -67,7 +67,12 @@ export function Proveedores() {
       toast.success('Proveedor creado correctamente.');
       setNuevo({ ...TEMPLATE });
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Error al crear proveedor');
+      const msg = error instanceof Error
+        ? error.message
+        : typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message: unknown }).message)
+          : JSON.stringify(error);
+      toast.error(msg || 'Error al crear proveedor');
     }
   }
 
