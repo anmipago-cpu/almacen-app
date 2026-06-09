@@ -7,7 +7,11 @@
       "Bash(git push *)",
       "Bash(git add *)",
       "Bash(git commit -m 'fix: parsear decimales con coma en CSV de recepciones *)",
-      "Bash(git commit -m 'fix: realtime subscription apunta a recepciones en lugar de registros *)"
+      "Bash(git commit -m 'fix: realtime subscription apunta a recepciones en lugar de registros *)",
+      "Bash(New-Item -ItemType File -Path \"C:\\\\Users\\\\Andrea Palacio\\\\almacen-app\\\\src\\\\pages\\\\Inventario.tsx\" -Force)",
+      "Bash(Out-Null)",
+      "Bash(Write-Output \"created\")",
+      "PowerShell(New-Item -ItemType File -Path \"C:\\\\Users\\\\Andrea Palacio\\\\almacen-app\\\\src\\\\pages\\\\Inventario.tsx\" -Force)"
     ]
   }
 }
