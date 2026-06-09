@@ -663,8 +663,11 @@ function AdminCategorias({ categoriasDB, subcategoriasDB, recargar, crearCategor
   async function handleNuevaSub(catCode: string) {
     const label = (nuevaSub[catCode] || '').trim();
     if (!label) { toast.error('Nombre de subcategoría requerido'); return; }
-    const existing = subcategoriasDB.filter(s => s.categoria_code === catCode);
-    const nextNum = existing.length + 1;
+    const dbCodes = new Set(subcategoriasDB.filter(s => s.categoria_code === catCode).map(s => s.code));
+    const hardcodedCodes = new Set(Object.keys(SUBCATEGORIAS[catCode] || {}));
+    const allCodes = new Set([...dbCodes, ...hardcodedCodes]);
+    let nextNum = 1;
+    while (allCodes.has(String(nextNum).padStart(2, '0'))) nextNum++;
     const code = String(nextNum).padStart(2, '0');
     setSaving(true);
     try {
