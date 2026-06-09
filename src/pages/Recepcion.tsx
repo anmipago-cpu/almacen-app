@@ -136,8 +136,9 @@ export function Recepcion() {
       }
       const productoCode = record.producto_code || record.code || record.codigo || '';
       const found = productos.find(prod => prod.code === productoCode);
-      const cantidad = Number(record.cantidad_recibida || record.cantidad || 0);
-      const contenido = Number(record.contenido_por_unidad || record.contenido || found?.unit_content || 1);
+      const parsearNum = (v: string) => Number((v || '0').replace(',', '.'));
+      const cantidad = parsearNum(record.cantidad_recibida || record.cantidad || '0');
+      const contenido = parsearNum(record.contenido_por_unidad || record.contenido || String(found?.unit_content ?? 1));
       return {
         fecha: record.fecha || hoy(),
         producto_code: productoCode,
