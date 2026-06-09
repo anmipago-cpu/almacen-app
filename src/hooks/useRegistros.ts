@@ -6,6 +6,7 @@ import type { Registro } from '../types';
 interface FiltrosRegistros {
   fechaDesde?: string;
   fechaHasta?: string;
+  tipo?: string;
   busqueda?: string;
   lote?: string;
   pagina?: number;
@@ -18,7 +19,7 @@ export function useRegistros(filtros: FiltrosRegistros = {}) {
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
 
-  const { fechaDesde, fechaHasta, busqueda, lote, pagina = 1, porPagina = 25 } = filtros;
+  const { fechaDesde, fechaHasta, tipo, busqueda, lote, pagina = 1, porPagina = 25 } = filtros;
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -30,6 +31,7 @@ export function useRegistros(filtros: FiltrosRegistros = {}) {
 
       if (fechaDesde) query = query.gte('fecha', fechaDesde);
       if (fechaHasta) query = query.lte('fecha', fechaHasta);
+      if (tipo) query = query.eq('tipo', tipo);
       if (lote) query = query.ilike('lote', `%${lote}%`);
       if (busqueda) {
         query = query.or(`producto_name.ilike.%${busqueda}%,producto_code.ilike.%${busqueda}%`);
@@ -47,7 +49,7 @@ export function useRegistros(filtros: FiltrosRegistros = {}) {
     } finally {
       setLoading(false);
     }
-  }, [fechaDesde, fechaHasta, busqueda, lote, pagina, porPagina, setRegistros]);
+  }, [fechaDesde, fechaHasta, tipo, busqueda, lote, pagina, porPagina, setRegistros]);
 
   useEffect(() => {
     cargar();

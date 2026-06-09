@@ -24,9 +24,9 @@ export function Registros() {
 
   function handleExport() {
     exportarExcel(registros.map(r => ({
-      Fecha: r.fecha, Tipo: r.tipo, Código: r.producto_code, Producto: r.producto_name,
+      Fecha: r.fecha, Tipo: r.tipo || 'RECEPCION', Código: r.producto_code, Producto: r.producto_name,
       Lote: r.lote || '', Proveedor: r.proveedor || '', 'Recibido/Por': r.recibido_por || '',
-      Cantidad: r.cantidad_unidades, Total: r.total_unidades, Observaciones: r.observaciones || '',
+      Cantidad: r.cantidad_unidad_natural, Total: r.total_unidades_base, Observaciones: r.observaciones || '',
     })), 'registros');
   }
 
@@ -106,7 +106,7 @@ export function Registros() {
                 ) : registros.map((r, idx) => (
                   <tr key={r.id} className={`border-b border-slate-50 hover:bg-blue-50/20 ${idx % 2 === 0 ? '' : 'bg-slate-50/30'}`}>
                     <td className="px-4 py-3 whitespace-nowrap text-slate-600">{formatFecha(r.fecha)}</td>
-                    <td className="px-4 py-3"><BadgeTipo tipo={r.tipo} /></td>
+                    <td className="px-4 py-3"><BadgeTipo tipo={r.tipo || 'RECEPCION'} /></td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-slate-800">{r.producto_name}</div>
                       <div className="text-xs text-slate-400 mono">{r.producto_code}</div>
@@ -115,10 +115,10 @@ export function Registros() {
                     <td className="px-4 py-3 text-slate-500 text-xs max-w-32 truncate">
                       {r.proveedor || r.recibido_por || '—'}
                     </td>
-                    <td className="px-4 py-3 font-mono text-right">{formatNumero(r.cantidad_unidades)}</td>
+                    <td className="px-4 py-3 font-mono text-right">{formatNumero(r.cantidad_unidad_natural)}</td>
                     <td className="px-4 py-3 font-mono font-semibold text-right">
-                      <span className={r.tipo === 'RECEPCION' || r.tipo === 'DEVOLUCION' ? 'text-green-700' : 'text-red-600'}>
-                        {r.tipo === 'RECEPCION' || r.tipo === 'DEVOLUCION' ? '+' : '-'}{formatNumero(r.total_unidades)}
+                      <span className={(!r.tipo || r.tipo === 'RECEPCION' || r.tipo === 'DEVOLUCION') ? 'text-green-700' : 'text-red-600'}>
+                        {(!r.tipo || r.tipo === 'RECEPCION' || r.tipo === 'DEVOLUCION') ? '+' : '-'}{formatNumero(r.total_unidades_base)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-slate-400 text-xs max-w-40 truncate" title={r.observaciones || ''}>

@@ -106,8 +106,8 @@ export function Consumo() {
         lote: data.lote || null as unknown as string,
         proveedor: productoSeleccionado.supplier,
         recibido_por: data.registrado_por,
-        cantidad_unidades: totalUnidades,
-        total_unidades: totalUnidades,
+        cantidad_unidad_natural: totalUnidades,
+        total_unidades_base: totalUnidades,
         contenido_por_unidad: 1,
         observaciones: `${metodoConfig.label}${data.observaciones ? ': ' + data.observaciones : ''}`,
       });

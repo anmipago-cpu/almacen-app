@@ -11,7 +11,7 @@ import { Button } from '../components/ui/Button';
 import { Input, Select } from '../components/ui/Input';
 import { BadgeCategoria } from '../components/ui/Badge';
 import { useProductos } from '../hooks/useProductos';
-import { CATEGORIAS, COLOR_OPTIONS, COLOR_MAP, type Producto, type CategoriaDB, type SubcategoriaDB } from '../types';
+import { CATEGORIAS, SUBCATEGORIAS, COLOR_OPTIONS, COLOR_MAP, type Producto, type CategoriaDB, type SubcategoriaDB } from '../types';
 import { supabase } from '../lib/supabase';
 import { PRODUCTOS_SEED } from '../data/productos_seed';
 
@@ -627,7 +627,7 @@ interface AdminCategoriasProps {
   eliminarSubcategoria: (id: number) => Promise<void>;
 }
 
-function AdminCategorias({ categoriasDB, subcategoriasDB, recargar, crearCategoria, actualizarCategoria, eliminarCategoria, crearSubcategoria, actualizarSubcategoria, eliminarSubcategoria }: AdminCategoriasProps) {
+function AdminCategorias({ categoriasDB, subcategoriasDB, recargar, crearCategoria, actualizarCategoria, eliminarCategoria: _eliminarCategoria, crearSubcategoria, actualizarSubcategoria, eliminarSubcategoria }: AdminCategoriasProps) {
   const [editCat, setEditCat] = useState<Record<string, Partial<CategoriaDB>>>({});
   const [editSub, setEditSub] = useState<Record<number, string>>({});
   const [nuevaCat, setNuevaCat] = useState({ code: '', label: '', color: 'slate' });

@@ -39,6 +39,7 @@ export interface Registro {
   recibido_por: string;
   po?: string;
   lote?: string;
+  tipo?: string;
   producto_code: string;
   producto_name: string;
   proveedor?: string;

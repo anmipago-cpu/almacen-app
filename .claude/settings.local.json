@@ -11,7 +11,9 @@
       "Bash(New-Item -ItemType File -Path \"C:\\\\Users\\\\Andrea Palacio\\\\almacen-app\\\\src\\\\pages\\\\Inventario.tsx\" -Force)",
       "Bash(Out-Null)",
       "Bash(Write-Output \"created\")",
-      "PowerShell(New-Item -ItemType File -Path \"C:\\\\Users\\\\Andrea Palacio\\\\almacen-app\\\\src\\\\pages\\\\Inventario.tsx\" -Force)"
+      "PowerShell(New-Item -ItemType File -Path \"C:\\\\Users\\\\Andrea Palacio\\\\almacen-app\\\\src\\\\pages\\\\Inventario.tsx\" -Force)",
+      "Bash(npm run *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

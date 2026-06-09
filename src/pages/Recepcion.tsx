@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Save, RotateCcw, Database, Package, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Save, RotateCcw, Database, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -53,7 +53,7 @@ export function Recepcion() {
   const [loteError, setLoteError] = useState('');
   const [bulkItems, setBulkItems] = useState<Omit<Registro, 'id' | 'created_at'>[]>([]);
   const [bulkErrors, setBulkErrors] = useState<string[]>([]);
-  const [bulkName, setBulkName] = useState('');
+  const [_bulkName, setBulkName] = useState('');
   const [bulkResponsable, setBulkResponsable] = useState('');
   const [bulkFecha, setBulkFecha] = useState(hoy());
   const [importing, setImporting] = useState(false);

@@ -9,7 +9,7 @@ import type { InventarioItem } from '../types';
 import { Download } from 'lucide-react';
 function getSemaforo(item: InventarioItem) {
   if (item.stock_actual <= 0) return 'AGOTADO';
-  const semanas = item.semanas_restantes ?? (item.promedio_semanal > 0 ? item.stock_actual / item.promedio_semanal : Infinity);
+  const semanas = item.semanas_restantes ?? (item.promedio_consumo_semanal > 0 ? item.stock_actual / item.promedio_consumo_semanal : Infinity);
   if (semanas < 1) return 'ROJO';
   if (semanas <= 3) return 'AMARILLO';
   return 'VERDE';
@@ -20,8 +20,8 @@ export function Alarmas() {
 
   const datos = useMemo(() => {
     return [...inventario].sort((a, b) => {
-      const aScore = a.stock_actual <= 0 ? -1 : (a.semanas_restantes ?? (a.promedio_semanal > 0 ? a.stock_actual / a.promedio_semanal : 999));
-      const bScore = b.stock_actual <= 0 ? -1 : (b.semanas_restantes ?? (b.promedio_semanal > 0 ? b.stock_actual / b.promedio_semanal : 999));
+      const aScore = a.stock_actual <= 0 ? -1 : (a.semanas_restantes ?? (a.promedio_consumo_semanal > 0 ? a.stock_actual / a.promedio_consumo_semanal : 999));
+      const bScore = b.stock_actual <= 0 ? -1 : (b.semanas_restantes ?? (b.promedio_consumo_semanal > 0 ? b.stock_actual / b.promedio_consumo_semanal : 999));
       return aScore - bScore;
     });
   }, [inventario]);
@@ -33,7 +33,7 @@ export function Alarmas() {
       Categoría: item.category,
       Proveedor: item.supplier || '',
       'Stock actual': item.stock_actual,
-      'Promedio semanal': item.promedio_semanal,
+      'Promedio semanal': item.promedio_consumo_semanal,
       'Semanas restantes': item.semanas_restantes ?? '',
       Estado: getSemaforo(item),
     })), 'alarmas');
@@ -101,7 +101,7 @@ export function Alarmas() {
                     <td className="px-4 py-3 text-slate-900">{item.name}</td>
                     <td className="px-4 py-3"><BadgeCategoria category={item.category} /></td>
                     <td className="px-4 py-3 font-mono text-slate-700">{formatNumero(item.stock_actual)}</td>
-                    <td className="px-4 py-3 font-mono text-slate-700">{formatNumero(item.promedio_semanal, 1)}</td>
+                    <td className="px-4 py-3 font-mono text-slate-700">{formatNumero(item.promedio_consumo_semanal, 1)}</td>
                     <td className="px-4 py-3 font-medium text-slate-800">{item.semanas_restantes !== undefined ? formatNumero(item.semanas_restantes, 1) : 'N/A'}</td>
                     <td className="px-4 py-3"><BadgeEstado estado={item.stock_actual <= 0 ? 'AGOTADO' : getSemaforo(item) === 'ROJO' ? 'CRITICO' : getSemaforo(item) === 'AMARILLO' ? 'BAJO' : 'OK'} /></td>
                   </tr>
