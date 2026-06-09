@@ -67,6 +67,7 @@ export function Catalogo() {
   const [importing, setImporting] = useState(false);
   const [filter, setFilter] = useState('');
   const [categoriaFiltro, setCategoriaFiltro] = useState('');
+  const [activoFiltro, setActivoFiltro] = useState<'activos' | 'inactivos' | ''>('activos');
   const [editando, setEditando] = useState<Record<string, Partial<Producto>>>({});
   const [editingProductCode, setEditingProductCode] = useState<string | null>(null);
 
@@ -94,9 +95,10 @@ export function Catalogo() {
       const query = filter.toLowerCase();
       const matchText = !filter || p.name.toLowerCase().includes(query) || p.code.toLowerCase().includes(query) || p.supplier?.toLowerCase().includes(query);
       const matchCat = !categoriaFiltro || p.category === categoriaFiltro;
-      return matchText && matchCat;
+      const matchActivo = !activoFiltro || (activoFiltro === 'activos' ? p.active !== false : p.active === false);
+      return matchText && matchCat && matchActivo;
     });
-  }, [productos, filter, categoriaFiltro]);
+  }, [productos, filter, categoriaFiltro, activoFiltro]);
 
   function handleExport() {
     exportarExcel(filtered.map(p => ({
@@ -474,6 +476,11 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
             <select value={categoriaFiltro} onChange={e => setCategoriaFiltro(e.target.value)} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
               <option value="">Todas las categorías</option>
               {Object.entries(CATEGORIAS).map(([key, cat]) => <option key={key} value={key}>{cat.label}</option>)}
+            </select>
+            <select value={activoFiltro} onChange={e => setActivoFiltro(e.target.value as 'activos' | 'inactivos' | '')} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+              <option value="">Todos</option>
+              <option value="activos">Activos</option>
+              <option value="inactivos">Inactivos</option>
             </select>
           </div>
         </div>
