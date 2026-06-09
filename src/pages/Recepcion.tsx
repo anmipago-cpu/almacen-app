@@ -318,7 +318,7 @@ export function Recepcion() {
           <div>
             <ComboboxProducto
               label="Producto *"
-              productos={productos}
+              productos={productos.filter(p => p.active !== false)}
               value={productoSeleccionado}
               onChange={(producto) => {
                 setProductoSeleccionado(producto);

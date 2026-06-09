@@ -162,7 +162,7 @@ export function Consumo() {
           <div>
             <ComboboxProducto
               label="Producto *"
-              productos={productos}
+              productos={productos.filter(p => p.active !== false)}
               value={productoSeleccionado}
               onChange={(p) => { setProductoSeleccionado(p); setProductoError(''); }}
               disabled={loadingProd}
