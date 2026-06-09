@@ -19,12 +19,13 @@ export function Inventario() {
   const items = useMemo(() => {
     return inventario.map(item => {
       const prod = productos.find(p => p.code === item.code);
-      const unit_content = prod?.unit_content ?? 1;
+      const unit_content = (Number(prod?.unit_content) > 0) ? Number(prod?.unit_content) : 1;
       const unit = prod?.unit || item.unit || 'UNIDAD';
       const unit_base = prod?.unit_base || '';
       const subcategory = prod?.subcategory || '';
-      const cantidad_conteo = unit_content > 0 ? item.stock_actual / unit_content : item.stock_actual;
-      return { ...item, unit_content, unit, unit_base, subcategory, cantidad_conteo };
+      const stock = Number(item.stock_actual) || 0;
+      const cantidad_conteo = stock / unit_content;
+      return { ...item, stock_actual: stock, unit_content, unit, unit_base, subcategory, cantidad_conteo };
     });
   }, [inventario, productos]);
 

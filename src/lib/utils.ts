@@ -7,7 +7,7 @@ export function formatFecha(fecha: string): string {
 }
 
 export function formatNumero(n: number | null | undefined, decimales = 2): string {
-  if (n == null) return '0';
+  if (n == null || isNaN(n)) return '0';
   return new Intl.NumberFormat('es-US', {
     minimumFractionDigits: 0,
     maximumFractionDigits: decimales,
