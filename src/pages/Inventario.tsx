@@ -15,6 +15,7 @@ export function Inventario() {
   const [busqueda, setBusqueda] = useState('');
   const [categoriasFiltro, setCategoriasFiltro] = useState<string[]>([]);
   const [subcategoriasFiltro, setSubcategoriasFiltro] = useState<string[]>([]);
+  const [soloConStock, setSoloConStock] = useState(true);
 
   const items = useMemo(() => {
     return inventario.map(item => {
@@ -53,9 +54,10 @@ export function Inventario() {
       const matchCat = categoriasFiltro.length === 0 || categoriasFiltro.includes(item.category);
       const matchSub = subcategoriasFiltro.length === 0 ||
         subcategoriasFiltro.includes(`${item.category}:${item.subcategory}`);
-      return matchText && matchCat && matchSub;
+      const matchStock = !soloConStock || item.stock_actual > 0;
+      return matchText && matchCat && matchSub && matchStock;
     });
-  }, [items, busqueda, categoriasFiltro, subcategoriasFiltro]);
+  }, [items, busqueda, categoriasFiltro, subcategoriasFiltro, soloConStock]);
 
   function handleExport() {
     exportarExcel(filtered.map(item => ({
@@ -135,6 +137,15 @@ export function Inventario() {
               Limpiar filtros
             </button>
           )}
+          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={soloConStock}
+              onChange={e => setSoloConStock(e.target.checked)}
+              className="h-4 w-4 rounded"
+            />
+            Solo con stock
+          </label>
           <span className="text-xs text-slate-400 ml-auto">{filtered.length} productos</span>
         </div>
 
