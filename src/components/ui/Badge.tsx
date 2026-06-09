@@ -1,4 +1,5 @@
 import { CATEGORIAS, ESTADO_CONFIG, type EstadoStock } from '../../types';
+import { useStore } from '../../store/useStore';
 import { cn } from '../../lib/utils';
 
 interface BadgeCategoriaProps {
@@ -7,7 +8,8 @@ interface BadgeCategoriaProps {
 }
 
 export function BadgeCategoria({ category, className }: BadgeCategoriaProps) {
-  const cat = CATEGORIAS[category];
+  const cats = useStore(s => s.categorias);
+  const cat = cats[category] ?? CATEGORIAS[category];
   if (!cat) return <span className={cn('px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700', className)}>{category}</span>;
   return (
     <span className={cn('px-2 py-0.5 rounded text-xs font-medium border', cat.bg, cat.text, cat.border, className)}>

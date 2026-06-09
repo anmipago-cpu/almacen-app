@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronDown, ChevronRight } from 'lucide-react';
 import { useUnidades } from '../hooks/useUnidades';
+import { useCategorias } from '../hooks/useCategorias';
 import { toast } from 'sonner';
 import { Search, Database, RefreshCw, UploadCloud, PlusCircle } from 'lucide-react';
 import { Header } from '../components/layout/Header';
@@ -10,7 +11,7 @@ import { Button } from '../components/ui/Button';
 import { Input, Select } from '../components/ui/Input';
 import { BadgeCategoria } from '../components/ui/Badge';
 import { useProductos } from '../hooks/useProductos';
-import { CATEGORIAS, type Producto } from '../types';
+import { CATEGORIAS, COLOR_OPTIONS, COLOR_MAP, type Producto, type CategoriaDB, type SubcategoriaDB } from '../types';
 import { supabase } from '../lib/supabase';
 import { PRODUCTOS_SEED } from '../data/productos_seed';
 
@@ -122,6 +123,7 @@ function validateProduct(product: Partial<Producto>) {
 export function Parametros() {
   const { productos, loading, recargar, actualizarProducto } = useProductos();
   const { unidadesConteo, unidadesBase, agregarConteo, eliminarConteo, agregarBase, eliminarBase } = useUnidades();
+  const cats = useCategorias();
   const [nuevaConteo, setNuevaConteo] = useState('');
   const [nuevaBase, setNuevaBase] = useState('');
   const [busqueda, setBusqueda] = useState('');
@@ -434,6 +436,8 @@ export function Parametros() {
         </Card>
       </div>
 
+      <AdminCategorias {...cats} />
+
       <div className="grid gap-5 sm:grid-cols-2 mb-5">
         <Card>
           <h2 className="text-base font-semibold text-slate-900 mb-1">Unidades de conteo</h2>
@@ -606,6 +610,203 @@ export function Parametros() {
         </div>
       </Card>
     </div>
+  );
+}
+
+// ─── Admin Categorías ────────────────────────────────────────────────────────
+
+interface AdminCategoriasProps {
+  categoriasDB: CategoriaDB[];
+  subcategoriasDB: SubcategoriaDB[];
+  recargar: () => Promise<void>;
+  crearCategoria: (row: Omit<CategoriaDB, 'active'>) => Promise<void>;
+  actualizarCategoria: (code: string, cambios: Partial<CategoriaDB>) => Promise<void>;
+  eliminarCategoria: (code: string) => Promise<void>;
+  crearSubcategoria: (row: Omit<SubcategoriaDB, 'id' | 'active'>) => Promise<void>;
+  actualizarSubcategoria: (id: number, cambios: Partial<SubcategoriaDB>) => Promise<void>;
+  eliminarSubcategoria: (id: number) => Promise<void>;
+}
+
+function AdminCategorias({ categoriasDB, subcategoriasDB, recargar, crearCategoria, actualizarCategoria, eliminarCategoria, crearSubcategoria, actualizarSubcategoria, eliminarSubcategoria }: AdminCategoriasProps) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [editCat, setEditCat] = useState<Record<string, Partial<CategoriaDB>>>({});
+  const [editSub, setEditSub] = useState<Record<number, string>>({});
+  const [nuevaCat, setNuevaCat] = useState({ code: '', label: '', color: 'slate' });
+  const [nuevaSub, setNuevaSub] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const allCats = categoriasDB.length > 0 ? categoriasDB
+    : Object.entries(CATEGORIAS).map(([code, cat]) => ({ code, label: cat.label, color: cat.color }));
+
+  async function guardarCat(code: string) {
+    const cambios = editCat[code];
+    if (!cambios) return;
+    setSaving(true);
+    try {
+      await actualizarCategoria(code, cambios);
+      setEditCat(prev => { const n = { ...prev }; delete n[code]; return n; });
+      toast.success('Categoría actualizada');
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Error'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleNuevaCat() {
+    if (!nuevaCat.code.trim() || !nuevaCat.label.trim()) { toast.error('Código y nombre son obligatorios'); return; }
+    setSaving(true);
+    try {
+      await crearCategoria({ code: nuevaCat.code.trim().toUpperCase(), label: nuevaCat.label.trim(), color: nuevaCat.color });
+      setNuevaCat({ code: '', label: '', color: 'slate' });
+      toast.success('Categoría creada');
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Error'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleNuevaSub(catCode: string) {
+    const label = (nuevaSub[catCode] || '').trim();
+    if (!label) { toast.error('Nombre de subcategoría requerido'); return; }
+    const existing = subcategoriasDB.filter(s => s.categoria_code === catCode);
+    const nextNum = existing.length + 1;
+    const code = String(nextNum).padStart(2, '0');
+    setSaving(true);
+    try {
+      await crearSubcategoria({ categoria_code: catCode, code, label });
+      setNuevaSub(prev => ({ ...prev, [catCode]: '' }));
+      toast.success('Subcategoría creada');
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Error'); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <Card className="mb-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Categorías y Subcategorías</h2>
+          <p className="text-sm text-slate-500">Administra los tipos de producto disponibles en el catálogo.</p>
+        </div>
+        <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={recargar}>Actualizar</Button>
+      </div>
+
+      {/* Lista de categorías */}
+      <div className="space-y-2 mb-5">
+        {allCats.map(cat => {
+          const colors = COLOR_MAP[cat.color] ?? COLOR_MAP['slate'];
+          const subs = subcategoriasDB.filter(s => s.categoria_code === cat.code);
+          const isExpanded = expanded === cat.code;
+          const cambios = editCat[cat.code] || {};
+          return (
+            <div key={cat.code} className="rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-3 bg-slate-50">
+                <button onClick={() => setExpanded(isExpanded ? null : cat.code)} className="text-slate-400 hover:text-slate-700">
+                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+                {/* Código */}
+                <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold border ${colors.bg} ${colors.text} ${colors.border}`}>
+                  {cat.code}
+                </span>
+                {/* Label editable */}
+                <input
+                  value={cambios.label ?? cat.label}
+                  onChange={e => setEditCat(prev => ({ ...prev, [cat.code]: { ...prev[cat.code], label: e.target.value } }))}
+                  className="flex-1 bg-transparent text-sm font-medium text-slate-800 border-b border-transparent focus:border-blue-400 focus:outline-none px-1"
+                />
+                {/* Color picker */}
+                <select
+                  value={cambios.color ?? cat.color}
+                  onChange={e => setEditCat(prev => ({ ...prev, [cat.code]: { ...prev[cat.code], color: e.target.value } }))}
+                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600"
+                >
+                  {COLOR_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                {Object.keys(cambios).length > 0 && (
+                  <button onClick={() => guardarCat(cat.code)} disabled={saving} className="text-xs font-medium text-blue-600 hover:underline">Guardar</button>
+                )}
+                <span className="text-xs text-slate-400">{subs.length} subcat.</span>
+              </div>
+
+              {isExpanded && (
+                <div className="px-10 py-3 space-y-2 border-t border-slate-100 bg-white">
+                  {subs.map(sub => (
+                    <div key={sub.id} className="flex items-center gap-3 text-sm">
+                      <span className="font-mono text-xs text-slate-400 w-8">{sub.code}</span>
+                      <input
+                        value={editSub[sub.id!] ?? sub.label}
+                        onChange={e => setEditSub(prev => ({ ...prev, [sub.id!]: e.target.value }))}
+                        className="flex-1 border-b border-transparent focus:border-blue-400 focus:outline-none text-slate-700 text-sm px-1"
+                      />
+                      {editSub[sub.id!] !== undefined && editSub[sub.id!] !== sub.label && (
+                        <button
+                          onClick={async () => {
+                            await actualizarSubcategoria(sub.id!, { label: editSub[sub.id!] });
+                            setEditSub(prev => { const n = { ...prev }; delete n[sub.id!]; return n; });
+                            toast.success('Subcategoría actualizada');
+                          }}
+                          className="text-xs text-blue-600 hover:underline"
+                        >Guardar</button>
+                      )}
+                      <button
+                        onClick={async () => { if (confirm(`Desactivar subcategoría "${sub.label}"?`)) await eliminarSubcategoria(sub.id!); }}
+                        className="text-slate-300 hover:text-red-500"
+                      ><X size={14} /></button>
+                    </div>
+                  ))}
+                  {/* Nueva subcategoría */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className="font-mono text-xs text-slate-300 w-8">+</span>
+                    <input
+                      value={nuevaSub[cat.code] || ''}
+                      onChange={e => setNuevaSub(prev => ({ ...prev, [cat.code]: e.target.value }))}
+                      onKeyDown={e => { if (e.key === 'Enter') handleNuevaSub(cat.code); }}
+                      placeholder="Nueva subcategoría..."
+                      className="flex-1 text-sm border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                    <Button size="sm" variant="outline" onClick={() => handleNuevaSub(cat.code)} disabled={saving}>Agregar</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Nueva categoría */}
+      <div className="rounded-2xl border border-dashed border-slate-300 p-4">
+        <p className="text-sm font-medium text-slate-700 mb-3">Agregar nueva categoría</p>
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="w-24">
+            <label className="text-xs text-slate-500">Código</label>
+            <input
+              value={nuevaCat.code}
+              onChange={e => setNuevaCat(p => ({ ...p, code: e.target.value.toUpperCase() }))}
+              placeholder="ej: QS"
+              maxLength={4}
+              className="w-full mt-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm font-mono"
+            />
+          </div>
+          <div className="flex-1 min-w-[160px]">
+            <label className="text-xs text-slate-500">Nombre</label>
+            <input
+              value={nuevaCat.label}
+              onChange={e => setNuevaCat(p => ({ ...p, label: e.target.value }))}
+              placeholder="ej: Quesos Especiales"
+              className="w-full mt-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+            />
+          </div>
+          <div className="w-32">
+            <label className="text-xs text-slate-500">Color</label>
+            <select
+              value={nuevaCat.color}
+              onChange={e => setNuevaCat(p => ({ ...p, color: e.target.value }))}
+              className="w-full mt-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+            >
+              {COLOR_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <Button onClick={handleNuevaCat} disabled={saving} icon={<PlusCircle size={15} />}>
+            Crear categoría
+          </Button>
+        </div>
+      </div>
+    </Card>
   );
 }
 

@@ -97,6 +97,45 @@ export interface InventarioFisicoItem {
   created_at?: string;
 }
 
+export interface CategoriaDB {
+  code: string;
+  label: string;
+  color: string;
+  active?: boolean;
+}
+
+export interface SubcategoriaDB {
+  id?: number;
+  categoria_code: string;
+  code: string;
+  label: string;
+  active?: boolean;
+}
+
+export const COLOR_OPTIONS = [
+  'slate','purple','orange','yellow','blue','green',
+  'teal','gray','cyan','red','indigo','pink','violet','amber','lime','rose',
+] as const;
+
+export const COLOR_MAP: Record<string, { bg: string; text: string; border: string }> = {
+  slate:  { bg: 'bg-slate-100',  text: 'text-slate-700',  border: 'border-slate-200'  },
+  purple: { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' },
+  orange: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200' },
+  yellow: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200' },
+  blue:   { bg: 'bg-blue-100',   text: 'text-blue-800',   border: 'border-blue-200'   },
+  green:  { bg: 'bg-green-100',  text: 'text-green-800',  border: 'border-green-200'  },
+  teal:   { bg: 'bg-teal-100',   text: 'text-teal-800',   border: 'border-teal-200'   },
+  gray:   { bg: 'bg-gray-100',   text: 'text-gray-700',   border: 'border-gray-200'   },
+  cyan:   { bg: 'bg-cyan-100',   text: 'text-cyan-800',   border: 'border-cyan-200'   },
+  red:    { bg: 'bg-red-100',    text: 'text-red-800',    border: 'border-red-200'    },
+  indigo: { bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200' },
+  pink:   { bg: 'bg-pink-100',   text: 'text-pink-800',   border: 'border-pink-200'   },
+  violet: { bg: 'bg-violet-100', text: 'text-violet-800', border: 'border-violet-200' },
+  amber:  { bg: 'bg-amber-100',  text: 'text-amber-800',  border: 'border-amber-200'  },
+  lime:   { bg: 'bg-lime-100',   text: 'text-lime-800',   border: 'border-lime-200'   },
+  rose:   { bg: 'bg-rose-100',   text: 'text-rose-800',   border: 'border-rose-200'   },
+};
+
 export type EstadoStock = 'OK' | 'BAJO' | 'CRITICO' | 'AGOTADO';
 
 export interface Categoria {
