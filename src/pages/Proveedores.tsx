@@ -17,7 +17,6 @@ const TEMPLATE = {
   phone: '',
   contact: '',
   email: '',
-  active: true,
 };
 
 function getNextProveedorCode(proveedores: Proveedor[]) {
@@ -48,7 +47,6 @@ export function Proveedores() {
       Teléfono: provider.phone || '',
       Contacto: provider.contact || '',
       Email: provider.email || '',
-      Activo: provider.active ? 'Sí' : 'No',
     })), 'proveedores');
   }
 
@@ -201,10 +199,6 @@ export function Proveedores() {
             <Input label="Teléfono" value={nuevo.phone} onChange={e => handleNuevo('phone', e.target.value)} />
             <Input label="Contacto" value={nuevo.contact} onChange={e => handleNuevo('contact', e.target.value)} />
             <Input label="Email" type="email" value={nuevo.email} onChange={e => handleNuevo('email', e.target.value)} />
-            <div className="flex items-center gap-2 px-2">
-              <input id="nuevo-active" type="checkbox" checked={Boolean(nuevo.active)} onChange={e => setNuevo(prev => ({ ...prev, active: e.target.checked }))} />
-              <label htmlFor="nuevo-active" className="text-sm text-slate-700">Proveedor activo</label>
-            </div>
             <Input label="Descripción" value={nuevo.description} onChange={e => handleNuevo('description', e.target.value)} />
             <div className="sm:col-span-2 flex justify-end">
               <Button onClick={guardarProveedor} loading={loading}>Crear proveedor</Button>
@@ -242,7 +236,7 @@ export function Proveedores() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {['Código', 'Nombre', 'Descripción', 'Teléfono', 'Contacto', 'Email', 'Activo', 'Acciones'].map(header => (
+                {['Código', 'Nombre', 'Descripción', 'Teléfono', 'Contacto', 'Email', 'Acciones'].map(header => (
                       <th key={header} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{header}</th>
                     ))}
               </tr>
@@ -309,13 +303,6 @@ export function Proveedores() {
                         />
                       ) : (
                         <span className="text-slate-600">{proveedor.email || '—'}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {isEditing ? (
-                        <input type="checkbox" checked={Boolean(cambios.active ?? proveedor.active ?? true)} onChange={e => setEditando(prev => ({ ...prev, [proveedor.code]: { ...prev[proveedor.code], active: e.target.checked } }))} />
-                      ) : (
-                        <span>{proveedor.active ? 'Sí' : 'No'}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">

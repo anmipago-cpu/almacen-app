@@ -28,23 +28,23 @@ export interface Proveedor {
   phone?: string;
   contact?: string;
   email?: string;
-  active?: boolean;
   created_at?: string;
 }
 
 export interface Registro {
   id?: string;
+  recepcion_number?: number;
   fecha: string;
-  tipo: 'RECEPCION' | 'CONSUMO' | 'AJUSTE' | 'DEVOLUCION';
+  recibido_por: string;
+  po?: string;
+  lote?: string;
   producto_code: string;
   producto_name: string;
-  lote?: string;
-  pallet?: string;
   proveedor?: string;
-  recibido_por?: string;
-  cantidad_unidades: number;
-  total_unidades: number;
+  cantidad_unidad_natural: number;
+  unidad_natural?: string;
   contenido_por_unidad?: number;
+  total_unidades_base: number;
   observaciones?: string;
   created_at?: string;
 }

@@ -92,17 +92,17 @@ export function Recepcion() {
     try {
       await guardarRegistro({
         fecha: data.fecha,
-        tipo: 'RECEPCION',
         producto_code: productoSeleccionado.code,
         producto_name: productoSeleccionado.name,
-        lote: data.lote,
-        pallet: data.po,
+        lote: data.lote || undefined,
+        po: data.po || undefined,
         proveedor: data.proveedor,
         recibido_por: data.recibido_por,
-        cantidad_unidades: Number(data.cantidad_recibida),
-        total_unidades: totalUnidades,
+        cantidad_unidad_natural: Number(data.cantidad_recibida),
+        unidad_natural: productoSeleccionado.unit || 'UNIDAD',
         contenido_por_unidad: contenidoProducto,
-        observaciones: data.observaciones,
+        total_unidades_base: totalUnidades,
+        observaciones: data.observaciones || undefined,
       });
 
       toast.success(`Recepción guardada: ${productoSeleccionado.name} — ${formatNumero(totalUnidades)} ${productoSeleccionado.unit_base || productoSeleccionado.unit || 'unidades'}`);
@@ -117,28 +117,38 @@ export function Recepcion() {
   function parseCsvRecepciones(text: string) {
     const rows = text.split(/\r?\n/).filter(Boolean);
     if (!rows.length) return [];
-    const headers = rows[0].split(',').map(header => header.trim().toLowerCase());
-    return rows.slice(1).map(line => {
-      const values = line.split(',').map(value => value.trim());
+    const sep = rows[0].includes(';') ? ';' : ',';
+    const headers = rows[0].split(sep).map(h => h.trim().toLowerCase());
+    const tieneEncabezado = headers.some(h => ['producto_code', 'codigo', 'code', 'cantidad'].includes(h));
+    const filas = tieneEncabezado ? rows.slice(1) : rows;
+    return filas.map(line => {
+      const values = line.split(sep).map(v => v.trim().replace(/^["']|["']$/g, ''));
       const record: Record<string, string> = {};
-      headers.forEach((field, index) => { record[field] = values[index] || ''; });
+      if (tieneEncabezado) {
+        headers.forEach((field, i) => { record[field] = values[i] || ''; });
+      } else {
+        record.producto_code = values[0] || '';
+        record.cantidad_recibida = values[1] || '0';
+        record.lote = values[2] || '';
+        record.recibido_por = values[3] || '';
+      }
       const productoCode = record.producto_code || record.code || record.codigo || '';
       const found = productos.find(prod => prod.code === productoCode);
-      const cantidad = Number(record.cantidad_recibida || record.cantidad || record.cantidad_unidades || 0);
+      const cantidad = Number(record.cantidad_recibida || record.cantidad || 0);
       const contenido = Number(record.contenido_por_unidad || record.contenido || found?.unit_content || 1);
       return {
         fecha: record.fecha || hoy(),
-        tipo: 'RECEPCION' as const,
         producto_code: productoCode,
         producto_name: record.producto_name || record.name || found?.name || '',
-        lote: record.lote || '',
-        pallet: record.po || record.pallet || '',
+        lote: record.lote || undefined,
+        po: record.po || record.pallet || undefined,
         proveedor: record.proveedor || found?.supplier || '',
         recibido_por: record.recibido_por || record.recibidor || '',
-        cantidad_unidades: cantidad,
+        cantidad_unidad_natural: cantidad,
+        unidad_natural: found?.unit || 'UNIDAD',
         contenido_por_unidad: contenido,
-        total_unidades: cantidad * contenido,
-        observaciones: record.observaciones || record.observacion || '',
+        total_unidades_base: cantidad * contenido,
+        observaciones: record.observaciones || undefined,
       };
     });
   }
@@ -159,24 +169,24 @@ export function Recepcion() {
       const codeCounts: Record<string, number> = {};
 
       parsed.forEach((item, index) => {
+        const rowNum = index + 2;
         if (!item.producto_code) {
-          errors.push(`Fila ${index + 2}: falta producto_code`);
+          errors.push(`Fila ${rowNum}: falta código de producto`);
+          return;
         }
         if (!item.producto_name) {
-          errors.push(`Fila ${index + 2}: falta producto_name o el código de producto no existe`);
+          errors.push(`Fila ${rowNum}: código "${item.producto_code}" no existe en el catálogo`);
+          return;
         }
         if (!item.recibido_por) {
-          errors.push(`Fila ${index + 2}: falta recibido_por`);
+          errors.push(`Fila ${rowNum}: falta recibido_por`);
         }
-        if (!(item.cantidad_unidades > 0)) {
-          errors.push(`Fila ${index + 2}: cantidad_recibida debe ser mayor que 0`);
-        }
-        if (!(item.contenido_por_unidad > 0)) {
-          errors.push(`Fila ${index + 2}: contenido_por_unidad debe ser mayor que 0`);
+        if (!(item.cantidad_unidad_natural > 0)) {
+          errors.push(`Fila ${rowNum}: cantidad debe ser mayor que 0`);
         }
         const prod = productos.find(p => p.code === item.producto_code);
         if (prod?.requires_lot && !item.lote?.trim()) {
-          errors.push(`Fila ${index + 2}: "${prod.name}" requiere lote — columna lote vacía`);
+          errors.push(`Fila ${rowNum}: "${prod.name}" requiere lote — columna lote vacía`);
         }
         if (item.producto_code) {
           codeCounts[item.producto_code] = (codeCounts[item.producto_code] || 0) + 1;
