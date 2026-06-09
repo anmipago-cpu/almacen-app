@@ -571,58 +571,60 @@ export function Recepcion() {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-xs">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Fecha</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Código</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Lote</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Proveedor</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Cant. conteo</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">U. conteo</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Cant. base</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">U. base</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap w-[90px]">Fecha</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Código</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500">Nombre</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Lote</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Proveedor</th>
+                    <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Conteo</th>
+                    <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Base</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {historial.map((rec, i) => {
                     const prod = productos.find(p => p.code === rec.producto_code);
+                    const unitConteo = rec.unidad_natural || prod?.unit || '';
+                    const unitBase = prod?.unit_base || '';
                     return (
-                    <tr key={rec.id ?? i} className="hover:bg-blue-50/30 transition-colors">
-                      <td className="px-4 py-3 whitespace-nowrap text-slate-500 text-xs">{formatFecha(rec.fecha)}</td>
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5">{rec.producto_code}</span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-800 font-medium max-w-[200px] truncate">{rec.producto_name}</td>
-                      <td className="px-4 py-3">
-                        {rec.lote
-                          ? <span className="inline-flex items-center rounded-full bg-blue-100 border border-blue-200 px-2 py-0.5 text-xs font-medium text-blue-800">{rec.lote}</span>
-                          : <span className="text-slate-300 text-xs">—</span>
-                        }
-                      </td>
-                      <td className="px-4 py-3 text-slate-500 text-xs max-w-[130px] truncate">{rec.proveedor || '—'}</td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-slate-800">{formatNumero(rec.cantidad_unidad_natural, 2)}</td>
-                      <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{rec.unidad_natural || prod?.unit || '—'}</td>
-                      <td className="px-4 py-3 text-right font-mono font-semibold text-emerald-700">{formatNumero(rec.total_unidades_base, 0)}</td>
-                      <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{prod?.unit_base || '—'}</td>
-                    </tr>
+                      <tr key={rec.id ?? i} className="hover:bg-blue-50/40 transition-colors">
+                        <td className="px-3 py-2 whitespace-nowrap text-slate-500">{formatFecha(rec.fecha)}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <span className="font-mono font-semibold text-slate-700 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5">{rec.producto_code}</span>
+                        </td>
+                        <td className="px-3 py-2 text-slate-800 font-medium max-w-[200px] truncate" title={rec.producto_name}>{rec.producto_name}</td>
+                        <td className="px-3 py-2">
+                          {rec.lote
+                            ? <span className="inline-flex items-center rounded-full bg-blue-100 border border-blue-200 px-2 py-0.5 font-medium text-blue-800">{rec.lote}</span>
+                            : <span className="text-slate-300">—</span>
+                          }
+                        </td>
+                        <td className="px-3 py-2 text-slate-500 max-w-[120px] truncate" title={rec.proveedor || ''}>{rec.proveedor || '—'}</td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap">
+                          <span className="font-mono font-bold text-slate-800">{formatNumero(rec.cantidad_unidad_natural, 0)}</span>
+                          {unitConteo && <span className="ml-1 text-slate-400 font-normal">{unitConteo}</span>}
+                        </td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap">
+                          <span className="font-mono font-semibold text-emerald-700">{formatNumero(rec.total_unidades_base, 0)}</span>
+                          {unitBase && <span className="ml-1 text-slate-400 font-normal">{unitBase}</span>}
+                        </td>
+                      </tr>
                     );
                   })}
                 </tbody>
                 <tfoot className="bg-slate-50 border-t-2 border-slate-200">
                   <tr>
-                    <td colSpan={5} className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Total del mes · {historial.length} recepciones
+                    <td colSpan={5} className="px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wide">
+                      Total · {historial.length} recepciones
                     </td>
-                    <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">
-                      {formatNumero(historial.reduce((s, r) => s + (r.cantidad_unidad_natural || 0), 0), 2)}
+                    <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-900">
+                      {formatNumero(historial.reduce((s, r) => s + (r.cantidad_unidad_natural || 0), 0), 0)}
                     </td>
-                    <td />
-                    <td className="px-4 py-3 text-right font-mono font-bold text-emerald-700">
+                    <td className="px-3 py-2.5 text-right font-mono font-bold text-emerald-700">
                       {formatNumero(historial.reduce((s, r) => s + (r.total_unidades_base || 0), 0), 0)}
                     </td>
-                    <td />
                   </tr>
                 </tfoot>
               </table>
