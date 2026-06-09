@@ -29,7 +29,7 @@ export function useInventario() {
 
     const channel = supabase
       .channel('inventario-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'registros' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recepciones' }, () => {
         cargar();
       })
       .subscribe();
