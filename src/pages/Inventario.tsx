@@ -20,6 +20,7 @@ interface LoteItem {
   total_conteo: number;
   total_base: number;
   ultima_fecha: string;
+  fecha_vencimiento: string;
   category: string;
 }
 
@@ -41,7 +42,7 @@ export function Inventario() {
     setLoadingLotes(true);
     const { data } = await supabase
       .from('recepciones')
-      .select('producto_code, producto_name, lote, proveedor, cantidad_unidad_natural, total_unidades_base, fecha, unidad_natural')
+      .select('producto_code, producto_name, lote, proveedor, cantidad_unidad_natural, total_unidades_base, fecha, unidad_natural, fecha_vencimiento')
       .not('lote', 'is', null)
       .neq('lote', '')
       .order('producto_code')
@@ -57,6 +58,10 @@ export function Inventario() {
           ex.total_conteo += rec.cantidad_unidad_natural || 0;
           ex.total_base += rec.total_unidades_base || 0;
           if (rec.fecha > ex.ultima_fecha) ex.ultima_fecha = rec.fecha;
+          // Keep earliest expiry date
+          if (rec.fecha_vencimiento && (!ex.fecha_vencimiento || rec.fecha_vencimiento < ex.fecha_vencimiento)) {
+            ex.fecha_vencimiento = rec.fecha_vencimiento;
+          }
         } else {
           map.set(key, {
             producto_code: rec.producto_code,
@@ -68,6 +73,7 @@ export function Inventario() {
             total_conteo: rec.cantidad_unidad_natural || 0,
             total_base: rec.total_unidades_base || 0,
             ultima_fecha: rec.fecha,
+            fecha_vencimiento: rec.fecha_vencimiento || '',
             category: prod?.category || '',
           });
         }
@@ -342,6 +348,7 @@ export function Inventario() {
                       <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-slate-500">Nombre</th>
                       <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-slate-500">Categoría</th>
                       <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Lote</th>
+                      <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Vencimiento</th>
                       <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-slate-500">Proveedor</th>
                       <th className="px-4 py-3 text-right font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Total conteo</th>
                       <th className="px-4 py-3 text-right font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Total base</th>
@@ -358,6 +365,12 @@ export function Inventario() {
                         <td className="px-4 py-2.5"><BadgeCategoria category={item.category} /></td>
                         <td className="px-4 py-2.5">
                           <span className="inline-flex items-center rounded-full bg-blue-100 border border-blue-200 px-2 py-0.5 font-semibold text-blue-800">{item.lote}</span>
+                        </td>
+                        <td className="px-4 py-2.5 whitespace-nowrap">
+                          {item.fecha_vencimiento
+                            ? <span className="inline-flex items-center rounded-full bg-amber-100 border border-amber-200 px-2 py-0.5 text-xs font-medium text-amber-800">{formatFecha(item.fecha_vencimiento)}</span>
+                            : <span className="text-slate-300">—</span>
+                          }
                         </td>
                         <td className="px-4 py-2.5 text-slate-500 max-w-[130px] truncate">{item.proveedor || '—'}</td>
                         <td className="px-4 py-2.5 text-right whitespace-nowrap">

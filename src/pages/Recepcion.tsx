@@ -673,9 +673,12 @@ export function Recepcion() {
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Código</th>
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500">Nombre</th>
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Lote</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Vencimiento</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">PO</th>
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Proveedor</th>
                     <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Conteo</th>
                     <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Base</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500">Observaciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -696,6 +699,13 @@ export function Recepcion() {
                             : <span className="text-slate-300">—</span>
                           }
                         </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {rec.fecha_vencimiento
+                            ? <span className="inline-flex items-center rounded-full bg-amber-100 border border-amber-200 px-2 py-0.5 text-xs font-medium text-amber-800">{formatFecha(rec.fecha_vencimiento)}</span>
+                            : <span className="text-slate-300">—</span>
+                          }
+                        </td>
+                        <td className="px-3 py-2 text-slate-500 whitespace-nowrap text-xs">{rec.po || '—'}</td>
                         <td className="px-3 py-2 text-slate-500 max-w-[120px] truncate" title={rec.proveedor || ''}>{rec.proveedor || '—'}</td>
                         <td className="px-3 py-2 text-right whitespace-nowrap">
                           <span className="font-mono font-bold text-slate-800">{formatNumero(rec.cantidad_unidad_natural, 0)}</span>
@@ -705,13 +715,16 @@ export function Recepcion() {
                           <span className="font-mono font-semibold text-emerald-700">{formatNumero(rec.total_unidades_base, 0)}</span>
                           {unitBase && <span className="ml-1 text-slate-400 font-normal">{unitBase}</span>}
                         </td>
+                        <td className="px-3 py-2 text-slate-400 text-xs max-w-[180px] truncate" title={rec.observaciones || ''}>
+                          {rec.observaciones || '—'}
+                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot className="bg-slate-50 border-t-2 border-slate-200">
                   <tr>
-                    <td colSpan={5} className="px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wide">
+                    <td colSpan={7} className="px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wide">
                       Total · {historialFiltrado.length} recepciones
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-900">
