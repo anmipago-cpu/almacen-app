@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent } from 'react';
 import { X } from 'lucide-react';
 import { useUnidades } from '../hooks/useUnidades';
 import { useCategorias } from '../hooks/useCategorias';
+import { usePersonas } from '../hooks/usePersonas';
 import { toast } from 'sonner';
 import { Search, Database, RefreshCw, UploadCloud, PlusCircle } from 'lucide-react';
 import { Header } from '../components/layout/Header';
@@ -124,6 +125,7 @@ export function Parametros() {
   const { productos, loading, recargar, actualizarProducto } = useProductos();
   const { unidadesConteo, unidadesBase, agregarConteo, eliminarConteo, agregarBase, eliminarBase } = useUnidades();
   const cats = useCategorias();
+  const personasHook = usePersonas();
   const [nuevaConteo, setNuevaConteo] = useState('');
   const [nuevaBase, setNuevaBase] = useState('');
   const [busqueda, setBusqueda] = useState('');
@@ -437,6 +439,8 @@ export function Parametros() {
       </div>
 
       <AdminCategorias {...cats} />
+
+      <AdminPersonas {...personasHook} />
 
       <div className="grid gap-5 sm:grid-cols-2 mb-5">
         <Card>
@@ -807,6 +811,117 @@ function AdminCategorias({ categoriasDB, subcategoriasDB, recargar, crearCategor
             Crear categoría
           </Button>
         </div>
+      </div>
+    </Card>
+  );
+}
+
+// ─── Admin Personas ──────────────────────────────────────────────────────────
+
+import type { Persona } from '../hooks/usePersonas';
+
+interface AdminPersonasProps {
+  personas: Persona[];
+  loading: boolean;
+  recargar: () => Promise<void>;
+  agregarPersona: (nombre: string) => Promise<void>;
+  actualizarPersona: (id: string, nombre: string) => Promise<void>;
+  eliminarPersona: (id: string) => Promise<void>;
+}
+
+function AdminPersonas({ personas, loading, recargar, agregarPersona, actualizarPersona, eliminarPersona }: AdminPersonasProps) {
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [editNames, setEditNames] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  async function handleAgregar() {
+    if (!nuevoNombre.trim()) { toast.error('Ingresa el nombre'); return; }
+    setSaving(true);
+    try {
+      await agregarPersona(nuevoNombre);
+      setNuevoNombre('');
+      toast.success('Persona agregada');
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Error'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleActualizar(id: string) {
+    const nombre = editNames[id];
+    if (!nombre?.trim()) return;
+    setSaving(true);
+    try {
+      await actualizarPersona(id, nombre);
+      setEditNames(prev => { const n = { ...prev }; delete n[id]; return n; });
+      toast.success('Actualizado');
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Error'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleEliminar(id: string, nombre: string) {
+    if (!confirm(`¿Desactivar a "${nombre}"?`)) return;
+    try {
+      await eliminarPersona(id);
+      toast.success('Persona desactivada');
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Error'); }
+  }
+
+  return (
+    <Card className="mb-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Personas</h2>
+          <p className="text-sm text-slate-500">Lista de responsables disponibles en Recepciones y Consumo.</p>
+        </div>
+        <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={recargar}>Actualizar</Button>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-slate-400 py-4 text-center">Cargando...</p>
+      ) : (
+        <div className="space-y-2 mb-4">
+          {personas.length === 0 && (
+            <p className="text-sm text-slate-400 italic">No hay personas registradas.</p>
+          )}
+          {personas.map(p => (
+            <div key={p.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <span className="font-mono text-xs font-semibold text-slate-500 w-16 shrink-0">{p.code}</span>
+              <input
+                value={editNames[p.id] ?? p.nombre}
+                onChange={e => setEditNames(prev => ({ ...prev, [p.id]: e.target.value }))}
+                className="flex-1 bg-transparent text-sm text-slate-800 border-b border-transparent focus:border-blue-400 focus:outline-none"
+              />
+              {editNames[p.id] !== undefined && editNames[p.id] !== p.nombre && (
+                <button
+                  onClick={() => handleActualizar(p.id)}
+                  disabled={saving}
+                  className="text-xs font-medium text-blue-600 hover:underline shrink-0"
+                >
+                  Guardar
+                </button>
+              )}
+              <button
+                onClick={() => handleEliminar(p.id, p.nombre)}
+                className="text-slate-300 hover:text-red-400 shrink-0"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Agregar nueva persona */}
+      <div className="flex gap-2 items-center border-t border-slate-100 pt-4">
+        <input
+          value={nuevoNombre}
+          onChange={e => setNuevoNombre(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleAgregar(); }}
+          placeholder="Nombre completo de la persona"
+          className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm"
+        />
+        <Button size="sm" icon={<PlusCircle size={15} />} onClick={handleAgregar} disabled={saving || !nuevoNombre.trim()}>
+          Agregar
+        </Button>
       </div>
     </Card>
   );

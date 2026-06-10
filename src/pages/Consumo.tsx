@@ -10,6 +10,7 @@ import { ComboboxProducto } from '../components/ui/Combobox';
 import { useProductos } from '../hooks/useProductos';
 import { useInventario } from '../hooks/useInventario';
 import { useRegistros } from '../hooks/useRegistros';
+import { usePersonas } from '../hooks/usePersonas';
 import { hoy, formatNumero } from '../lib/utils';
 import type { Producto } from '../types';
 
@@ -33,6 +34,7 @@ export function Consumo() {
   const { productos, loading: loadingProd } = useProductos();
   const { inventario } = useInventario();
   const { guardarRegistro } = useRegistros({ porPagina: 1 });
+  const { personas } = usePersonas();
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [productoError, setProductoError] = useState('');
@@ -143,11 +145,18 @@ export function Consumo() {
               {...register('fecha', { required: 'Requerido' })}
               error={errors.fecha?.message}
             />
-            <Input
-              label="Registrado por"
-              placeholder="Nombre del responsable"
-              {...register('registrado_por')}
-            />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-slate-700">Registrado por</label>
+              <select
+                {...register('registrado_por')}
+                className="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Selecciona responsable</option>
+                {personas.map(p => (
+                  <option key={p.code} value={p.nombre}>{p.nombre}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <Select

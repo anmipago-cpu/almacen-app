@@ -10,6 +10,7 @@ import { ComboboxProducto } from '../components/ui/Combobox';
 import { useProductos } from '../hooks/useProductos';
 import { useProveedores } from '../hooks/useProveedores';
 import { useRegistros } from '../hooks/useRegistros';
+import { usePersonas } from '../hooks/usePersonas';
 import { useSearchContext } from '../context/SearchContext';
 import { supabase } from '../lib/supabase';
 import { hoy, formatNumero, formatFecha } from '../lib/utils';
@@ -42,6 +43,7 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 export function Recepcion() {
   const { productos, loading: loadingProd } = useProductos();
   const { proveedores } = useProveedores();
+  const { personas } = usePersonas();
   const { guardarRegistro } = useRegistros({ porPagina: 1 });
   const [mesFiltro, setMesFiltro] = useState(getMesActual);
   const { inicio, fin } = rangoMes(mesFiltro.mes, mesFiltro.año);
@@ -302,12 +304,19 @@ export function Recepcion() {
               {...register('fecha', { required: 'Requerido' })}
               error={errors.fecha?.message}
             />
-            <Input
-              label="Recibido por *"
-              placeholder="Nombre del responsable"
-              {...register('recibido_por', { required: 'Requerido' })}
-              error={errors.recibido_por?.message}
-            />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-slate-700">Recibido por *</label>
+              <select
+                {...register('recibido_por', { required: 'Selecciona el responsable' })}
+                className="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Selecciona responsable</option>
+                {personas.map(p => (
+                  <option key={p.code} value={p.nombre}>{p.nombre}</option>
+                ))}
+              </select>
+              {errors.recibido_por && <p className="text-xs text-red-600">{errors.recibido_por.message}</p>}
+            </div>
           </div>
 
           {/* Proveedor */}
@@ -475,12 +484,19 @@ export function Recepcion() {
 
           {/* Responsable y fecha globales */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Input
-              label="Responsable *"
-              placeholder="Nombre de quien recibe (aplica a todas las filas)"
-              value={bulkResponsable}
-              onChange={e => setBulkResponsable(e.target.value)}
-            />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-slate-700">Responsable *</label>
+              <select
+                value={bulkResponsable}
+                onChange={e => setBulkResponsable(e.target.value)}
+                className="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Selecciona responsable</option>
+                {personas.map(p => (
+                  <option key={p.code} value={p.nombre}>{p.nombre}</option>
+                ))}
+              </select>
+            </div>
             <Input
               label="Fecha"
               type="date"
