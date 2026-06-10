@@ -22,6 +22,7 @@ interface FormData {
   proveedor: string;
   po: string;
   lote: string;
+  fecha_vencimiento: string;
   cantidad_recibida: number;
   observaciones: string;
 }
@@ -82,6 +83,7 @@ export function Recepcion() {
       proveedor: '',
       po: '',
       lote: '',
+      fecha_vencimiento: '',
       cantidad_recibida: 1,
       observaciones: '',
     }
@@ -109,6 +111,7 @@ export function Recepcion() {
       proveedor: '',
       po: '',
       lote: '',
+      fecha_vencimiento: '',
       cantidad_recibida: 1,
       observaciones: '',
     });
@@ -131,6 +134,7 @@ export function Recepcion() {
         producto_code: productoSeleccionado.code,
         producto_name: productoSeleccionado.name,
         lote: data.lote || undefined,
+        fecha_vencimiento: data.fecha_vencimiento || undefined,
         po: data.po || undefined,
         proveedor: data.proveedor,
         recibido_por: data.recibido_por,
@@ -390,8 +394,13 @@ export function Recepcion() {
                 </div>
               </div>
               {productoSeleccionado.requires_lot && (
-                <div className="mx-3 mb-3 rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800 font-semibold flex items-center gap-2">
+                <div className="mx-3 mb-1 rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800 font-semibold flex items-center gap-2">
                   <span className="text-red-500">⚠</span> Lote OBLIGATORIO — este producto requiere número de lote
+                </div>
+              )}
+              {productoSeleccionado.requires_expiry && (
+                <div className="mx-3 mb-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 font-semibold flex items-center gap-2">
+                  <span className="text-amber-500">⚠</span> Fecha de vencimiento OBLIGATORIA para este producto
                 </div>
               )}
             </div>
@@ -412,6 +421,19 @@ export function Recepcion() {
               {...register('lote', { onChange: () => setLoteError('') })}
             />
           </div>
+
+          {/* Fecha de vencimiento — solo si el producto lo requiere */}
+          {productoSeleccionado?.requires_expiry && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <Input
+                label="Fecha de vencimiento *"
+                type="date"
+                {...register('fecha_vencimiento', { required: productoSeleccionado.requires_expiry ? 'Requerido para este producto' : false })}
+                error={errors.fecha_vencimiento?.message}
+                hint="Este producto requiere registrar la fecha de vencimiento"
+              />
+            </div>
+          )}
 
           {/* Cantidad */}
           <div>

@@ -17,6 +17,7 @@ export interface Producto {
   stock_bajo: number;
   lead_time_semanas?: number;
   requires_lot?: boolean;
+  requires_expiry?: boolean;
   active?: boolean;
   created_at?: string;
 }
@@ -39,6 +40,7 @@ export interface Registro {
   recibido_por: string;
   po?: string;
   lote?: string;
+  fecha_vencimiento?: string;
   tipo?: string;
   producto_code: string;
   producto_name: string;

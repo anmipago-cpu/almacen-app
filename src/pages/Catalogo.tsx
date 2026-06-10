@@ -33,6 +33,7 @@ const EMPTY_FORM = {
   stock_min: '0',
   stock_bajo: '0',
   requires_lot: false,
+  requires_expiry: false,
   active: true,
 };
 
@@ -147,6 +148,7 @@ export function Catalogo() {
       'Stock mínimo': p.stock_min,
       'Stock bajo': p.stock_bajo,
       'Requiere lote': p.requires_lot ? 'Sí' : 'No',
+      'Requiere vencimiento': p.requires_expiry ? 'Sí' : 'No',
       Activo: p.active ? 'Sí' : 'No',
     })), 'catalogo');
   }
@@ -193,6 +195,7 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
       stock_min: Number(form.stock_min) || 0,
       stock_bajo: Number(form.stock_bajo) || 0,
       requires_lot: Boolean(form.requires_lot),
+      requires_expiry: Boolean(form.requires_expiry),
       active: Boolean(form.active),
     };
     setSaving(true);
@@ -393,6 +396,7 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
           stock_min: Number(item.stock_min) || 0,
           stock_bajo: Number(item.stock_bajo) || 0,
           requires_lot: Boolean(item.requires_lot),
+          requires_expiry: Boolean(item.requires_expiry),
           active: Boolean(item.active),
         };
         // If supplier_code exists, append it to supplier field (as text, not FK)
@@ -498,10 +502,14 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
             </Select>
             <Input label="Stock mínimo" type="number" value={form.stock_min} onChange={e => handleField('stock_min', e.target.value)} />
             <Input label="Stock bajo" type="number" value={form.stock_bajo} onChange={e => handleField('stock_bajo', e.target.value)} />
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-4">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.requires_lot} onChange={e => handleField('requires_lot', e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
                 Requiere control por lote
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={form.requires_expiry} onChange={e => handleField('requires_expiry', e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-amber-600" />
+                Requiere fecha de vencimiento
               </label>
             </div>
             <div className="flex items-center gap-3">
@@ -599,6 +607,7 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                 <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Stock mín.</th>
                 <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Stock bajo</th>
                 <th className="px-3 py-2 text-center font-semibold text-slate-700 min-w-[80px]">Req. lote</th>
+                <th className="px-3 py-2 text-center font-semibold text-slate-700 min-w-[80px]">Req. vence</th>
                 <th className="px-3 py-2 text-center font-semibold text-slate-700 min-w-[70px]">Activo</th>
                 <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[130px]">Acciones</th>
               </tr>
@@ -793,6 +802,20 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                       ) : (
                         <span className={product.requires_lot ? 'text-blue-700 font-semibold' : 'text-slate-400'}>
                           {product.requires_lot ? 'Sí' : 'No'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-center">
+                      {isEditing ? (
+                        <input
+                          type="checkbox"
+                          checked={Boolean(cambios.requires_expiry ?? product.requires_expiry ?? false)}
+                          onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], requires_expiry: e.target.checked } }))}
+                          className="h-4 w-4 accent-amber-600"
+                        />
+                      ) : (
+                        <span className={product.requires_expiry ? 'text-amber-700 font-semibold' : 'text-slate-400'}>
+                          {product.requires_expiry ? 'Sí' : 'No'}
                         </span>
                       )}
                     </td>
