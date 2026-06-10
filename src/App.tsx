@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Recepcion } from './pages/Recepcion';
-import { ConsumoSemanal } from './pages/ConsumoSemanal';
+import { Consumo } from './pages/Consumo';
 import { InventarioFisico } from './pages/InventarioFisico';
 import { Alarmas } from './pages/Alarmas';
 import { Historial } from './pages/Historial';
@@ -26,7 +26,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/recepciones" element={<Recepcion />} />
-          <Route path="/consumo-semanal" element={<ConsumoSemanal />} />
+          <Route path="/consumo-semanal" element={<Consumo />} />
           <Route path="/inventario-fisico" element={<InventarioFisico />} />
           <Route path="/inventario" element={<Inventario />} />
           <Route path="/alarmas" element={<Alarmas />} />
