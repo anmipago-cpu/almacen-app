@@ -57,6 +57,21 @@ export function Recepcion() {
   const [bulkResponsable, setBulkResponsable] = useState('');
   const [bulkFecha, setBulkFecha] = useState(hoy());
   const [importing, setImporting] = useState(false);
+  const [busquedaHistorial, setBusquedaHistorial] = useState('');
+  const [fechaDesdeHistorial, setFechaDesdeHistorial] = useState('');
+  const [fechaHastaHistorial, setFechaHastaHistorial] = useState('');
+
+  const historialFiltrado = historial.filter(rec => {
+    const q = busquedaHistorial.toLowerCase();
+    const matchText = !busquedaHistorial ||
+      rec.producto_code.toLowerCase().includes(q) ||
+      rec.producto_name.toLowerCase().includes(q) ||
+      (rec.lote || '').toLowerCase().includes(q) ||
+      (rec.proveedor || '').toLowerCase().includes(q);
+    const matchDesde = !fechaDesdeHistorial || rec.fecha >= fechaDesdeHistorial;
+    const matchHasta = !fechaHastaHistorial || rec.fecha <= fechaHastaHistorial;
+    return matchText && matchDesde && matchHasta;
+  });
 
   const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm<FormData>({
     defaultValues: {
@@ -534,41 +549,81 @@ export function Recepcion() {
 
       {/* Historial del mes — ancho completo */}
       <Card className="!p-0 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-slate-900">Historial de recepciones</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {historial.length} {historial.length === 1 ? 'recepción' : 'recepciones'} en {MESES[mesFiltro.mes - 1]} {mesFiltro.año}
-            </p>
+        <div className="p-4 border-b border-slate-100 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">Historial de recepciones</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {historialFiltrado.length} {historialFiltrado.length === 1 ? 'recepción' : 'recepciones'}
+                {(busquedaHistorial || fechaDesdeHistorial || fechaHastaHistorial) ? ' (filtrado)' : ` · ${MESES[mesFiltro.mes - 1]} ${mesFiltro.año}`}
+              </p>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setMesFiltro(prev => {
+                  const m = prev.mes === 1 ? 12 : prev.mes - 1;
+                  const a = prev.mes === 1 ? prev.año - 1 : prev.año;
+                  return { mes: m, año: a };
+                })}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
+              ><ChevronLeft size={16} /></button>
+              <span className="text-sm font-semibold text-slate-700 min-w-[150px] text-center">
+                {MESES[mesFiltro.mes - 1]} {mesFiltro.año}
+              </span>
+              <button
+                onClick={() => setMesFiltro(prev => {
+                  const m = prev.mes === 12 ? 1 : prev.mes + 1;
+                  const a = prev.mes === 12 ? prev.año + 1 : prev.año;
+                  return { mes: m, año: a };
+                })}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
+              ><ChevronRight size={16} /></button>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setMesFiltro(prev => {
-                const m = prev.mes === 1 ? 12 : prev.mes - 1;
-                const a = prev.mes === 1 ? prev.año - 1 : prev.año;
-                return { mes: m, año: a };
-              })}
-              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
-            ><ChevronLeft size={16} /></button>
-            <span className="text-sm font-semibold text-slate-700 min-w-[150px] text-center">
-              {MESES[mesFiltro.mes - 1]} {mesFiltro.año}
-            </span>
-            <button
-              onClick={() => setMesFiltro(prev => {
-                const m = prev.mes === 12 ? 1 : prev.mes + 1;
-                const a = prev.mes === 12 ? prev.año + 1 : prev.año;
-                return { mes: m, año: a };
-              })}
-              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
-            ><ChevronRight size={16} /></button>
+          {/* Filtros */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <input
+              value={busquedaHistorial}
+              onChange={e => setBusquedaHistorial(e.target.value)}
+              placeholder="Buscar por código, nombre o lote..."
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm min-w-[220px] flex-1"
+            />
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-slate-500 whitespace-nowrap">Desde</label>
+              <input
+                type="date"
+                value={fechaDesdeHistorial}
+                onChange={e => setFechaDesdeHistorial(e.target.value)}
+                className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-slate-500 whitespace-nowrap">Hasta</label>
+              <input
+                type="date"
+                value={fechaHastaHistorial}
+                onChange={e => setFechaHastaHistorial(e.target.value)}
+                className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm"
+              />
+            </div>
+            {(busquedaHistorial || fechaDesdeHistorial || fechaHastaHistorial) && (
+              <button
+                onClick={() => { setBusquedaHistorial(''); setFechaDesdeHistorial(''); setFechaHastaHistorial(''); }}
+                className="text-xs text-slate-500 hover:text-slate-800 underline whitespace-nowrap"
+              >
+                Limpiar filtros
+              </button>
+            )}
           </div>
         </div>
 
         {loadingHistorial ? (
           <div className="p-8 text-center text-sm text-slate-400">Cargando...</div>
-        ) : historial.length === 0 ? (
+        ) : historialFiltrado.length === 0 ? (
           <div className="p-8 text-center text-sm text-slate-400">
-            No hay recepciones registradas en {MESES[mesFiltro.mes - 1]} {mesFiltro.año}.
+            {historial.length === 0
+              ? `No hay recepciones en ${MESES[mesFiltro.mes - 1]} ${mesFiltro.año}.`
+              : 'No hay recepciones que coincidan con los filtros.'}
           </div>
         ) : (
           <>
@@ -586,7 +641,7 @@ export function Recepcion() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {historial.map((rec, i) => {
+                  {historialFiltrado.map((rec, i) => {
                     const prod = productos.find(p => p.code === rec.producto_code);
                     const unitConteo = rec.unidad_natural || prod?.unit || '';
                     const unitBase = prod?.unit_base || '';
@@ -619,13 +674,13 @@ export function Recepcion() {
                 <tfoot className="bg-slate-50 border-t-2 border-slate-200">
                   <tr>
                     <td colSpan={5} className="px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wide">
-                      Total · {historial.length} recepciones
+                      Total · {historialFiltrado.length} recepciones
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-900">
-                      {formatNumero(historial.reduce((s, r) => s + (r.cantidad_unidad_natural || 0), 0), 0)}
+                      {formatNumero(historialFiltrado.reduce((s, r) => s + (r.cantidad_unidad_natural || 0), 0), 0)}
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono font-bold text-emerald-700">
-                      {formatNumero(historial.reduce((s, r) => s + (r.total_unidades_base || 0), 0), 0)}
+                      {formatNumero(historialFiltrado.reduce((s, r) => s + (r.total_unidades_base || 0), 0), 0)}
                     </td>
                   </tr>
                 </tfoot>
