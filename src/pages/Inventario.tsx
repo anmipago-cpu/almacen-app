@@ -42,7 +42,7 @@ export function Inventario() {
     setLoadingLotes(true);
     const { data } = await supabase
       .from('recepciones')
-      .select('producto_code, producto_name, lote, proveedor, cantidad_unidad_natural, total_unidades_base, fecha, unidad_natural, fecha_vencimiento')
+      .select('producto_code, producto_name, lote, proveedor, tipo, cantidad_unidad_natural, total_unidades_base, fecha, unidad_natural, fecha_vencimiento')
       .not('lote', 'is', null)
       .neq('lote', '')
       .order('producto_code')
@@ -53,13 +53,16 @@ export function Inventario() {
       data.forEach(rec => {
         const key = `${rec.producto_code}||${rec.lote}`;
         const prod = productos.find(p => p.code === rec.producto_code);
+        const esEntrada = !rec.tipo || rec.tipo === 'RECEPCION' || rec.tipo === 'DEVOLUCION';
+        const delta = esEntrada ? (rec.total_unidades_base || 0) : -(rec.total_unidades_base || 0);
+        const deltaConteo = esEntrada ? (rec.cantidad_unidad_natural || 0) : -(rec.cantidad_unidad_natural || 0);
+
         if (map.has(key)) {
           const ex = map.get(key)!;
-          ex.total_conteo += rec.cantidad_unidad_natural || 0;
-          ex.total_base += rec.total_unidades_base || 0;
+          ex.total_conteo += deltaConteo;
+          ex.total_base += delta;
           if (rec.fecha > ex.ultima_fecha) ex.ultima_fecha = rec.fecha;
-          // Keep earliest expiry date
-          if (rec.fecha_vencimiento && (!ex.fecha_vencimiento || rec.fecha_vencimiento < ex.fecha_vencimiento)) {
+          if (esEntrada && rec.fecha_vencimiento && (!ex.fecha_vencimiento || rec.fecha_vencimiento < ex.fecha_vencimiento)) {
             ex.fecha_vencimiento = rec.fecha_vencimiento;
           }
         } else {
@@ -70,15 +73,16 @@ export function Inventario() {
             proveedor: rec.proveedor || '',
             unidad_natural: rec.unidad_natural || prod?.unit || '',
             unit_base: prod?.unit_base || '',
-            total_conteo: rec.cantidad_unidad_natural || 0,
-            total_base: rec.total_unidades_base || 0,
+            total_conteo: deltaConteo,
+            total_base: delta,
             ultima_fecha: rec.fecha,
-            fecha_vencimiento: rec.fecha_vencimiento || '',
+            fecha_vencimiento: (esEntrada ? rec.fecha_vencimiento : '') || '',
             category: prod?.category || '',
           });
         }
       });
-      setLotesData(Array.from(map.values()));
+      // Solo mostrar lotes con stock positivo
+      setLotesData(Array.from(map.values()).filter(l => l.total_base > 0.001));
     }
     setLoadingLotes(false);
   }, [productos]);
