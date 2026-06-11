@@ -21,7 +21,8 @@ const METODOS = [
 interface LineaConsumo {
   id: number;
   producto: Producto;
-  cantidad: number;
+  cantidad: number;      // unidades de conteo (ej: CAJA)
+  cantidadBase: number;  // unidades base (ej: UND)
   lote: string;
   stock_actual: number;
 }
@@ -81,6 +82,7 @@ export function Consumo() {
   // Agregar producto
   const [productoSel, setProductoSel] = useState<Producto | null>(null);
   const [cantidad, setCantidad] = useState('');
+  const [tipoUnidad, setTipoUnidad] = useState<'conteo' | 'base'>('conteo');
   const [lote, setLote] = useState('');
   const [productoError, setProductoError] = useState('');
 
@@ -151,10 +153,14 @@ export function Consumo() {
     if (!cant || cant <= 0) { toast.error('Ingresa una cantidad válida'); return; }
     const ya = lineas.find(l => l.producto.code === productoSel.code && l.lote === lote.trim());
     if (ya) { toast.error('Ese producto y lote ya están en la lista'); return; }
+    const unitContent = productoSel.unit_content || 1;
+    const cantidadConteo = tipoUnidad === 'conteo' ? cant : cant / unitContent;
+    const cantidadBase   = tipoUnidad === 'conteo' ? cant * unitContent : cant;
     setLineas(prev => [...prev, {
       id: ++_lineaId,
       producto: productoSel,
-      cantidad: cant,
+      cantidad: cantidadConteo,
+      cantidadBase,
       lote: lote.trim(),
       stock_actual: getStockActual(productoSel.code),
     }]);
@@ -182,7 +188,7 @@ export function Consumo() {
         cantidad_unidad_natural: linea.cantidad,
         unidad_natural: linea.producto.unit || 'UNIDAD',
         contenido_por_unidad: linea.producto.unit_content || 1,
-        total_unidades_base: linea.cantidad * (linea.producto.unit_content || 1),
+        total_unidades_base: linea.cantidadBase,
         observaciones: `${obsPrefix}${metodoConfig.label}`,
       }));
       const { error } = await supabase.from('recepciones').insert(payload);
@@ -382,12 +388,33 @@ export function Consumo() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs text-slate-600">Cantidad *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs text-slate-600">Cantidad *</label>
+                    {productoSel && (productoSel.unit_content ?? 1) !== 1 && (
+                      <div className="flex bg-slate-200 rounded-lg p-0.5 gap-0.5">
+                        <button type="button" onClick={() => setTipoUnidad('conteo')}
+                          className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${tipoUnidad === 'conteo' ? 'bg-white shadow text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>
+                          {productoSel.unit || 'Conteo'}
+                        </button>
+                        <button type="button" onClick={() => setTipoUnidad('base')}
+                          className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${tipoUnidad === 'base' ? 'bg-white shadow text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>
+                          {productoSel.unit_base || 'Base'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <input type="number" min="0" step="any" value={cantidad}
                     onChange={e => setCantidad(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); agregarLinea(); } }}
                     placeholder="0"
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                  {productoSel && cantidad && parseFloat(cantidad) > 0 && (productoSel.unit_content ?? 1) !== 1 && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      {tipoUnidad === 'conteo'
+                        ? `= ${formatNumero(parseFloat(cantidad) * (productoSel.unit_content || 1), 0)} ${productoSel.unit_base || ''}`
+                        : `= ${formatNumero(parseFloat(cantidad) / (productoSel.unit_content || 1), 2)} ${productoSel.unit || ''}`}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs text-slate-600">Lote (opcional)</label>
@@ -413,8 +440,9 @@ export function Consumo() {
                 </div>
                 <div className="divide-y divide-slate-100 bg-white">
                   {lineas.map(linea => {
-                    const stockRes = linea.stock_actual - linea.cantidad;
+                    const stockRes = linea.stock_actual - linea.cantidadBase;
                     const colorRes = stockRes < 0 ? 'text-red-600' : stockRes <= linea.producto.stock_min ? 'text-yellow-600' : 'text-emerald-600';
+                    const tieneDobleUnidad = (linea.producto.unit_content ?? 1) !== 1;
                     return (
                       <div key={linea.id} className="flex items-center gap-2 px-3 py-2.5">
                         <div className="flex-1 min-w-0">
@@ -424,11 +452,14 @@ export function Consumo() {
                           </div>
                           <div className="flex items-center gap-3 mt-0.5">
                             <span className="text-xs text-slate-500">
-                              {formatNumero(linea.cantidad)} {linea.producto.unit || 'unid'}
+                              {tieneDobleUnidad
+                                ? <>{formatNumero(linea.cantidad, 2)} {linea.producto.unit || 'unid'} <span className="text-slate-400">= {formatNumero(linea.cantidadBase, 0)} {linea.producto.unit_base || ''}</span></>
+                                : <>{formatNumero(linea.cantidadBase, 0)} {linea.producto.unit || 'unid'}</>
+                              }
                               {linea.lote && <> · <span className="text-blue-600">Lote: {linea.lote}</span></>}
                             </span>
                             <span className={`text-xs font-semibold ${colorRes}`}>
-                              → {formatNumero(stockRes)}
+                              → {formatNumero(stockRes, 0)}
                             </span>
                           </div>
                         </div>
