@@ -16,6 +16,7 @@ import { Login } from './pages/Login';
 import { ResetPassword } from './pages/ResetPassword';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useCategorias } from './hooks/useCategorias';
+import { supabase } from './lib/supabase';
 
 function AppInitializer() {
   useCategorias();
@@ -23,7 +24,7 @@ function AppInitializer() {
 }
 
 function ProtectedApp() {
-  const { session, loading } = useAuth();
+  const { session, loading, profile } = useAuth();
 
   if (loading) {
     return (
@@ -34,6 +35,44 @@ function ProtectedApp() {
   }
 
   if (!session) return <Login />;
+
+  if (!loading && session && !profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#1E3A5F' }}>
+        <div className="bg-white rounded-3xl p-8 shadow-2xl text-center max-w-sm mx-4">
+          <div className="text-4xl mb-4">🔒</div>
+          <h2 className="text-lg font-semibold text-slate-900 mb-2">Acceso no autorizado</h2>
+          <p className="text-sm text-slate-500 mb-6">Tu cuenta no tiene un perfil asignado. Contacta al administrador.</p>
+          <button
+            onClick={() => { supabase.auth.signOut(); }}
+            className="rounded-xl px-4 py-2 text-sm font-semibold text-white"
+            style={{ background: '#1E3A5F' }}
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile?.activo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#1E3A5F' }}>
+        <div className="bg-white rounded-3xl p-8 shadow-2xl text-center max-w-sm mx-4">
+          <div className="text-4xl mb-4">⛔</div>
+          <h2 className="text-lg font-semibold text-slate-900 mb-2">Cuenta desactivada</h2>
+          <p className="text-sm text-slate-500 mb-6">Tu acceso ha sido desactivado. Contacta al administrador.</p>
+          <button
+            onClick={() => { supabase.auth.signOut(); }}
+            className="rounded-xl px-4 py-2 text-sm font-semibold text-white"
+            style={{ background: '#1E3A5F' }}
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
