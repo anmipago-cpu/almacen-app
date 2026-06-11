@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, PackagePlus, PackageMinus,
   Boxes, ClipboardList, ChevronLeft, ChevronRight,
-  Archive, AlertTriangle, Settings, BarChart2, Users, LogOut, Search
+  Archive, AlertTriangle, Settings, BarChart2, Users, LogOut, Search, X
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useState } from 'react';
@@ -37,16 +37,20 @@ const ROL_LABELS: Record<Rol, string> = {
   consulta: 'Solo lectura',
 };
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen: boolean;
+  onMobileClose: () => void;
+}
+
+export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { profile, signOut } = useAuth();
   const rol = profile?.rol ?? 'consulta';
-
   const navItems = NAV_ITEMS.filter(item => item.roles.includes(rol));
 
-  return (
+  const sidebarContent = (
     <aside className={cn(
-      'flex flex-col h-screen sticky top-0 transition-all duration-300 shrink-0 border-r border-white/10 bg-[#1E3A5F] shadow-xl',
+      'flex flex-col h-full transition-all duration-300 bg-[#1E3A5F] shadow-xl',
       collapsed ? 'w-20' : 'w-64'
     )}>
       <div className="flex items-center justify-between gap-3 px-5 py-5 border-b border-white/10">
@@ -59,12 +63,22 @@ export function Sidebar() {
         ) : (
           <div className="h-10 w-10 rounded-lg bg-white/10" />
         )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 transition-colors hover:bg-white/10"
-        >
-          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        </button>
+        <div className="flex items-center gap-1">
+          {/* Close button — only on mobile */}
+          <button
+            onClick={onMobileClose}
+            className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
+          >
+            <X size={16} />
+          </button>
+          {/* Collapse button — only on desktop */}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="hidden md:inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-1">
@@ -73,6 +87,7 @@ export function Sidebar() {
             key={to}
             to={to}
             end={to === '/'}
+            onClick={onMobileClose}
             className={({ isActive }) => cn(
               'flex items-center gap-3 rounded-2xl px-4 py-3 mx-3 text-sm font-medium transition-all duration-200',
               'text-slate-200 hover:bg-white/10 hover:text-white',
@@ -107,5 +122,28 @@ export function Sidebar() {
         </button>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex h-screen sticky top-0 shrink-0 border-r border-white/10">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          <div className="flex h-full">
+            {sidebarContent}
+          </div>
+          {/* Backdrop */}
+          <div
+            className="flex-1 bg-black/50"
+            onClick={onMobileClose}
+          />
+        </div>
+      )}
+    </>
   );
 }
