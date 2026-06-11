@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
-import { Plus, Trash2, Save, RotateCcw, Database, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Save, RotateCcw, Database, ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -102,6 +102,17 @@ export function Consumo() {
   const [busqueda, setBusqueda] = useState('');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
+
+  // Eliminar del historial
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState<string | null>(null);
+
+  async function eliminarRegistro(id: string) {
+    const { error } = await supabase.from('recepciones').delete().eq('id', id);
+    if (error) { toast.error(error.message); return; }
+    setHistorial(prev => prev.filter(r => r.id !== id));
+    setConfirmandoEliminar(null);
+    toast.success('Registro eliminado — el inventario se actualizó');
+  }
 
   // CSV bulk
   const [bulkItems, setBulkItems] = useState<Omit<Registro, 'id' | 'created_at'>[]>([]);
@@ -836,6 +847,7 @@ export function Consumo() {
                   <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Cantidad</th>
                   <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Responsable</th>
                   <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500">Observaciones</th>
+                  <th className="px-3 py-2.5 text-center font-semibold uppercase tracking-wide text-slate-500 w-[60px]"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -845,6 +857,35 @@ export function Consumo() {
                     rec.tipo === 'DEVOLUCION' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
                     rec.tipo === 'AJUSTE'     ? 'bg-amber-100 text-amber-700 border-amber-200' :
                                                'bg-slate-100 text-slate-600 border-slate-200';
+                  const isConfirming = confirmandoEliminar === rec.id;
+
+                  if (isConfirming) {
+                    return (
+                      <tr key={rec.id ?? i} className="bg-red-50 border-l-2 border-red-400">
+                        <td colSpan={8} className="px-4 py-2.5 text-sm text-red-700">
+                          <span className="font-semibold">¿Eliminar este registro?</span>
+                          <span className="ml-2 text-red-500 text-xs">
+                            {formatFecha(rec.fecha)} · {rec.producto_code} · {rec.tipo}
+                            {rec.lote && ` · Lote: ${rec.lote}`}
+                            {' · '}{formatNumero(rec.cantidad_unidad_natural, 0)} {rec.unidad_natural || ''}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2.5">
+                          <div className="flex items-center justify-center gap-1">
+                            <button onClick={() => eliminarRegistro(rec.id!)} title="Confirmar"
+                              className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
+                              <Check size={13} />
+                            </button>
+                            <button onClick={() => setConfirmandoEliminar(null)} title="Cancelar"
+                              className="p-1.5 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors">
+                              <X size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+
                   return (
                     <tr key={rec.id ?? i} className="hover:bg-slate-50/60 transition-colors">
                       <td className="px-3 py-2 whitespace-nowrap text-slate-500">{formatFecha(rec.fecha)}</td>
@@ -866,6 +907,12 @@ export function Consumo() {
                       </td>
                       <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{rec.recibido_por || '—'}</td>
                       <td className="px-3 py-2 text-slate-400 max-w-[200px] truncate" title={rec.observaciones || ''}>{rec.observaciones || '—'}</td>
+                      <td className="px-2 py-2 text-center">
+                        <button onClick={() => setConfirmandoEliminar(rec.id!)} title="Eliminar registro"
+                          className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -878,7 +925,7 @@ export function Consumo() {
                   <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-900">
                     {formatNumero(historialFiltrado.reduce((s, r) => s + (r.cantidad_unidad_natural || 0), 0), 0)}
                   </td>
-                  <td colSpan={2} />
+                  <td colSpan={3} />
                 </tr>
               </tfoot>
             </table>
