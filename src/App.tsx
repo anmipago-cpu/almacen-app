@@ -13,6 +13,7 @@ import { Buscador } from './pages/Buscador';
 import { Parametros } from './pages/Parametros';
 import { Usuarios } from './pages/Usuarios';
 import { Login } from './pages/Login';
+import { ResetPassword } from './pages/ResetPassword';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useCategorias } from './hooks/useCategorias';
 
@@ -21,7 +22,7 @@ function AppInitializer() {
   return null;
 }
 
-function AuthGate({ children }: { children: React.ReactNode }) {
+function ProtectedApp() {
   const { session, loading } = useAuth();
 
   if (loading) {
@@ -33,32 +34,38 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   if (!session) return <Login />;
-  return <>{children}</>;
+
+  return (
+    <>
+      <AppInitializer />
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/recepciones" element={<Recepcion />} />
+          <Route path="/consumo-semanal" element={<Consumo />} />
+          <Route path="/inventario-fisico" element={<InventarioFisico />} />
+          <Route path="/inventario" element={<Inventario />} />
+          <Route path="/alarmas" element={<Alarmas />} />
+          <Route path="/historial" element={<Historial />} />
+          <Route path="/catalogo" element={<Catalogo />} />
+          <Route path="/proveedores" element={<Proveedores />} />
+          <Route path="/buscador" element={<Buscador />} />
+          <Route path="/parametros" element={<Parametros />} />
+          <Route path="/usuarios" element={<Usuarios />} />
+        </Routes>
+      </Layout>
+    </>
+  );
 }
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AuthGate>
-          <AppInitializer />
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/recepciones" element={<Recepcion />} />
-              <Route path="/consumo-semanal" element={<Consumo />} />
-              <Route path="/inventario-fisico" element={<InventarioFisico />} />
-              <Route path="/inventario" element={<Inventario />} />
-              <Route path="/alarmas" element={<Alarmas />} />
-              <Route path="/historial" element={<Historial />} />
-              <Route path="/catalogo" element={<Catalogo />} />
-              <Route path="/proveedores" element={<Proveedores />} />
-              <Route path="/buscador" element={<Buscador />} />
-              <Route path="/parametros" element={<Parametros />} />
-              <Route path="/usuarios" element={<Usuarios />} />
-            </Routes>
-          </Layout>
-        </AuthGate>
+        <Routes>
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="*" element={<ProtectedApp />} />
+        </Routes>
       </BrowserRouter>
     </AuthProvider>
   );
