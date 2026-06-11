@@ -2,27 +2,47 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, PackagePlus, PackageMinus,
   Boxes, ClipboardList, ChevronLeft, ChevronRight,
-  Archive, AlertTriangle, Settings, BarChart2
+  Archive, AlertTriangle, Settings, BarChart2, Users, LogOut, Search
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import type { Rol } from '../../context/AuthContext';
 
-const NAV_ITEMS = [
-  { to: '/',               icon: LayoutDashboard, label: 'Dashboard'          },
-  { to: '/recepciones',    icon: PackagePlus,     label: 'Recepciones'        },
-  { to: '/inventario',        icon: BarChart2,      label: 'Inventario'         },
-  { to: '/inventario-fisico', icon: Boxes,         label: 'Inventario Físico'  },
-  { to: '/consumo-semanal', icon: PackageMinus,   label: 'Consumo Semanal'    },
-  { to: '/alarmas',        icon: AlertTriangle,   label: 'Alarmas'            },
-  { to: '/historial',      icon: ClipboardList,   label: 'Historial'          },
-  { to: '/catalogo',       icon: Archive,         label: 'Catálogo'           },
-  { to: '/proveedores',    icon: PackagePlus,     label: 'Proveedores'        },
-  { to: '/buscador',       icon: ChevronRight,    label: 'Buscador'           },
-  { to: '/parametros',     icon: Settings,        label: 'Parámetros'         },
+interface NavItem {
+  to: string;
+  icon: React.ElementType;
+  label: string;
+  roles: Rol[];
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { to: '/',                icon: LayoutDashboard, label: 'Dashboard',          roles: ['admin', 'operario', 'consulta'] },
+  { to: '/recepciones',     icon: PackagePlus,     label: 'Recepciones',        roles: ['admin', 'operario'] },
+  { to: '/inventario',      icon: BarChart2,       label: 'Inventario',         roles: ['admin', 'operario', 'consulta'] },
+  { to: '/inventario-fisico', icon: Boxes,         label: 'Inventario Físico',  roles: ['admin', 'operario'] },
+  { to: '/consumo-semanal', icon: PackageMinus,    label: 'Consumo Semanal',    roles: ['admin', 'operario'] },
+  { to: '/alarmas',         icon: AlertTriangle,   label: 'Alarmas',            roles: ['admin', 'operario', 'consulta'] },
+  { to: '/historial',       icon: ClipboardList,   label: 'Historial',          roles: ['admin', 'operario', 'consulta'] },
+  { to: '/catalogo',        icon: Archive,         label: 'Catálogo',           roles: ['admin'] },
+  { to: '/proveedores',     icon: PackagePlus,     label: 'Proveedores',        roles: ['admin'] },
+  { to: '/buscador',        icon: Search,          label: 'Buscador',           roles: ['admin', 'operario', 'consulta'] },
+  { to: '/parametros',      icon: Settings,        label: 'Parámetros',         roles: ['admin'] },
+  { to: '/usuarios',        icon: Users,           label: 'Usuarios',           roles: ['admin'] },
 ];
+
+const ROL_LABELS: Record<Rol, string> = {
+  admin: 'Administrador',
+  operario: 'Operario',
+  consulta: 'Solo lectura',
+};
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const { profile, signOut } = useAuth();
+  const rol = profile?.rol ?? 'consulta';
+
+  const navItems = NAV_ITEMS.filter(item => item.roles.includes(rol));
 
   return (
     <aside className={cn(
@@ -48,7 +68,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-1">
-        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+        {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
@@ -67,12 +87,24 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="px-5 py-4 border-t border-white/10">
-        {!collapsed && (
-          <div className="rounded-2xl bg-white/5 p-3 text-center text-xs text-slate-300">
-            Versión 1.0 · Profesional
+      <div className="px-3 py-4 border-t border-white/10 space-y-2">
+        {!collapsed && profile && (
+          <div className="rounded-2xl bg-white/5 px-3 py-2.5">
+            <p className="text-sm font-medium text-white truncate">{profile.nombre}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{ROL_LABELS[profile.rol]}</p>
           </div>
         )}
+        <button
+          onClick={signOut}
+          className={cn(
+            'w-full flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm text-slate-300 hover:bg-white/10 hover:text-white transition-colors',
+            collapsed && 'justify-center px-0'
+          )}
+          title={collapsed ? 'Cerrar sesión' : undefined}
+        >
+          <LogOut size={16} className="shrink-0" />
+          {!collapsed && <span>Cerrar sesión</span>}
+        </button>
       </div>
     </aside>
   );

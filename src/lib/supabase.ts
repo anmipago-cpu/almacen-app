@@ -11,3 +11,10 @@ export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder'
 );
+
+// Secondary client for creating users without overriding the current admin session
+export const supabaseCreator = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder',
+  { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+);
