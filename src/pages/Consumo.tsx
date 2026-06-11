@@ -662,6 +662,11 @@ export function Consumo() {
                     );
                   })}
                 </div>
+                {!responsable && (
+                  <div className="px-3 pt-2 text-xs text-amber-700 bg-amber-50 border-t border-amber-200 flex items-center gap-1.5">
+                    <span>⚠</span> Ingresa el nombre del responsable para poder guardar.
+                  </div>
+                )}
                 <div className="border-t border-blue-200 bg-blue-50 p-3 flex gap-2">
                   <Button onClick={guardarTodo} loading={guardando} icon={<Save size={16} />}
                     className="flex-1" disabled={!responsable}>
