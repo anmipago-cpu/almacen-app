@@ -1,58 +1,54 @@
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 
-const DEFAULT_CONTEO = ['CAJA', 'BULTO', 'PALLET', 'UNIDAD', 'ROLLO', 'SET', 'DRUM', 'SACK'];
+const DEFAULT_CONTEO = ['CAJA', 'BULTO', 'CARTON', 'PALLET', 'UNIDAD', 'ROLLO', 'SET', 'DRUM', 'SACK'];
 const DEFAULT_BASE = ['BOLSA', 'TAZA', 'TAPA', 'TAZA/TAPA', 'UNIDAD', 'ROLLO', 'SET'];
 
-const KEY_CONTEO = 'almacen_unidades_conteo';
-const KEY_BASE = 'almacen_unidades_base';
-
-function loadFromStorage(key: string, defaults: string[]): string[] {
-  try {
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : defaults;
-  } catch {
-    return defaults;
-  }
-}
-
-function saveToStorage(key: string, values: string[]) {
-  localStorage.setItem(key, JSON.stringify(values));
-}
-
 export function useUnidades() {
-  const [unidadesConteo, setUnidadesConteo] = useState<string[]>(() =>
-    loadFromStorage(KEY_CONTEO, DEFAULT_CONTEO)
-  );
-  const [unidadesBase, setUnidadesBase] = useState<string[]>(() =>
-    loadFromStorage(KEY_BASE, DEFAULT_BASE)
-  );
+  const [unidadesConteo, setUnidadesConteo] = useState<string[]>(DEFAULT_CONTEO);
+  const [unidadesBase, setUnidadesBase] = useState<string[]>(DEFAULT_BASE);
 
-  function agregarConteo(valor: string) {
+  const cargar = useCallback(async () => {
+    const { data } = await supabase
+      .from('parametros')
+      .select('key, valor')
+      .in('key', ['unidades_conteo', 'unidades_base']);
+    if (data) {
+      const conteo = data.find(d => d.key === 'unidades_conteo');
+      const base = data.find(d => d.key === 'unidades_base');
+      if (conteo?.valor) setUnidadesConteo(conteo.valor as string[]);
+      if (base?.valor) setUnidadesBase(base.valor as string[]);
+    }
+  }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  async function agregarConteo(valor: string) {
     const v = valor.trim().toUpperCase();
     if (!v || unidadesConteo.includes(v)) return;
     const nueva = [...unidadesConteo, v];
+    await supabase.from('parametros').upsert({ key: 'unidades_conteo', valor: nueva });
     setUnidadesConteo(nueva);
-    saveToStorage(KEY_CONTEO, nueva);
   }
 
-  function eliminarConteo(valor: string) {
+  async function eliminarConteo(valor: string) {
     const nueva = unidadesConteo.filter(u => u !== valor);
+    await supabase.from('parametros').upsert({ key: 'unidades_conteo', valor: nueva });
     setUnidadesConteo(nueva);
-    saveToStorage(KEY_CONTEO, nueva);
   }
 
-  function agregarBase(valor: string) {
+  async function agregarBase(valor: string) {
     const v = valor.trim().toUpperCase();
     if (!v || unidadesBase.includes(v)) return;
     const nueva = [...unidadesBase, v];
+    await supabase.from('parametros').upsert({ key: 'unidades_base', valor: nueva });
     setUnidadesBase(nueva);
-    saveToStorage(KEY_BASE, nueva);
   }
 
-  function eliminarBase(valor: string) {
+  async function eliminarBase(valor: string) {
     const nueva = unidadesBase.filter(u => u !== valor);
+    await supabase.from('parametros').upsert({ key: 'unidades_base', valor: nueva });
     setUnidadesBase(nueva);
-    saveToStorage(KEY_BASE, nueva);
   }
 
   return { unidadesConteo, unidadesBase, agregarConteo, eliminarConteo, agregarBase, eliminarBase };
