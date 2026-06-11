@@ -136,7 +136,7 @@ export function Recepcion() {
   useEffect(() => {
     if (selectedProduct && selectedProduct.code !== productoSeleccionado?.code) {
       setProductoSeleccionado(selectedProduct);
-      setValue('proveedor', selectedProduct.supplier || '');
+      if (selectedProduct.supplier) setValue('proveedor', selectedProduct.supplier);
     }
   }, [selectedProduct, productoSeleccionado?.code, setValue]);
 
@@ -399,8 +399,8 @@ export function Recepcion() {
                 setSelectedProduct(producto);
                 setProductoError('');
                 setLoteError('');
-                if (producto) {
-                  setValue('proveedor', producto.supplier || '');
+                if (producto?.supplier) {
+                  setValue('proveedor', producto.supplier);
                 }
               }}
               disabled={loadingProd}
