@@ -87,6 +87,8 @@ export function Consumo() {
   const [tipoUnidad, setTipoUnidad] = useState<'conteo' | 'base'>('conteo');
   const [modoConteo, setModoConteo] = useState(false);
   const [lote, setLote] = useState('');
+  const [lotesDisponibles, setLotesDisponibles] = useState<{ lote: string; stock_base: number }[]>([]);
+  const [loadingLotes, setLoadingLotes] = useState(false);
   const [productoError, setProductoError] = useState('');
 
   // Lista de consumos a guardar
@@ -150,6 +152,41 @@ export function Consumo() {
     return inventario.find(i => i.code === code)?.stock_actual ?? 0;
   }
 
+  async function cargarLotes(productoCode: string) {
+    setLoadingLotes(true);
+    setLotesDisponibles([]);
+    const { data } = await supabase
+      .from('recepciones')
+      .select('lote, tipo, total_unidades_base')
+      .eq('producto_code', productoCode)
+      .not('lote', 'is', null);
+    if (data) {
+      const map = new Map<string, number>();
+      data.forEach(r => {
+        const key = r.lote as string;
+        const delta = (!r.tipo || r.tipo === 'RECEPCION' || r.tipo === 'DEVOLUCION')
+          ? (r.total_unidades_base || 0)
+          : -(r.total_unidades_base || 0);
+        map.set(key, (map.get(key) || 0) + delta);
+      });
+      setLotesDisponibles(
+        Array.from(map.entries())
+          .map(([lote, stock_base]) => ({ lote, stock_base }))
+          .filter(l => l.stock_base > 0.001)
+          .sort((a, b) => a.lote.localeCompare(b.lote))
+      );
+    }
+    setLoadingLotes(false);
+  }
+
+  function getStockParaCalculo(): number {
+    if (lote && lotesDisponibles.length > 0) {
+      return lotesDisponibles.find(l => l.lote === lote)?.stock_base
+        ?? getStockActual(productoSel?.code ?? '');
+    }
+    return getStockActual(productoSel?.code ?? '');
+  }
+
   function agregarLinea() {
     if (!productoSel) { setProductoError('Selecciona un producto'); return; }
     const cant = parseFloat(cantidad.replace(',', '.'));
@@ -157,7 +194,7 @@ export function Consumo() {
     const ya = lineas.find(l => l.producto.code === productoSel.code && l.lote === lote.trim());
     if (ya) { toast.error('Ese producto y lote ya están en la lista'); return; }
     const unitContent = productoSel.unit_content || 1;
-    const stockActualBase = getStockActual(productoSel.code);
+    const stockActualBase = getStockParaCalculo();
 
     if (modoConteo) {
       // MODO CONTEO FÍSICO: el usuario ingresa cuánto tiene ahora
@@ -421,18 +458,29 @@ export function Consumo() {
                 label=""
                 productos={productos.filter(p => p.active !== false)}
                 value={productoSel}
-                onChange={p => { setProductoSel(p); setProductoError(''); setTipoUnidad('conteo'); setCantidad(''); }}
+                onChange={p => {
+                  setProductoSel(p);
+                  setProductoError('');
+                  setTipoUnidad('conteo');
+                  setCantidad('');
+                  setLote('');
+                  setLotesDisponibles([]);
+                  if (p) cargarLotes(p.code);
+                }}
                 disabled={loadingProd}
                 error={productoError}
               />
 
               {productoSel && (() => {
-                const stockBase = getStockActual(productoSel.code);
+                const stockBase = getStockParaCalculo();
                 const uc = productoSel.unit_content ?? 1;
+                const loteSelInfo = lote ? lotesDisponibles.find(l => l.lote === lote) : null;
                 return (
-                  <div className="rounded-xl bg-white border border-slate-200 px-3 py-2 text-sm">
+                  <div className="rounded-xl bg-white border border-slate-200 px-3 py-2 text-sm space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500 text-xs">Stock disponible</span>
+                      <span className="text-slate-500 text-xs">
+                        {loteSelInfo ? `Stock lote ${lote}` : 'Stock total disponible'}
+                      </span>
                       <div className="text-right">
                         {uc > 1 ? (
                           <>
@@ -450,6 +498,18 @@ export function Consumo() {
                         )}
                       </div>
                     </div>
+                    {loadingLotes && <p className="text-xs text-slate-400">Cargando lotes...</p>}
+                    {!loadingLotes && lotesDisponibles.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-0.5 border-t border-slate-100">
+                        {lotesDisponibles.map(l => (
+                          <button key={l.lote} type="button"
+                            onClick={() => setLote(lote === l.lote ? '' : l.lote)}
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium border transition-all ${lote === l.lote ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'}`}>
+                            {l.lote} · {uc > 1 ? `${formatNumero(l.stock_base / uc, 1)} ${productoSel.unit}` : `${formatNumero(l.stock_base, 0)} ${productoSel.unit_base || ''}`}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -488,7 +548,7 @@ export function Consumo() {
                     const enBase = tipoUnidad === 'conteo' ? cant * uc : cant;
                     const enConteo = tipoUnidad === 'conteo' ? cant : cant / uc;
                     if (modoConteo) {
-                      const stockBase = getStockActual(productoSel.code);
+                      const stockBase = getStockParaCalculo();
                       const diferencia = stockBase - enBase;
                       return (
                         <div className={`mt-1 rounded-lg px-2 py-1.5 text-xs ${diferencia > 0 ? 'bg-purple-100 text-purple-800' : diferencia < 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
@@ -517,12 +577,21 @@ export function Consumo() {
                   )}
                 </div>
                 <div>
-                  <label className="text-xs text-slate-600">Lote (opcional)</label>
+                  <label className="text-xs text-slate-600">
+                    Lote {lotesDisponibles.length > 0 ? <span className="text-blue-600 font-medium">(selecciona arriba)</span> : '(opcional)'}
+                  </label>
                   <input type="text" value={lote}
                     onChange={e => setLote(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); agregarLinea(); } }}
-                    placeholder="Ej: L-12345"
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    placeholder={lotesDisponibles.length > 0 ? 'Seleccionado arriba' : 'Ej: L-12345'}
+                    className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${lote ? 'border-blue-400 bg-blue-50 font-semibold text-blue-900' : 'border-slate-300 bg-white'}`}
+                  />
+                  {lote && lotesDisponibles.length > 0 && (
+                    <button type="button" onClick={() => setLote('')}
+                      className="text-xs text-slate-400 hover:text-red-500 mt-0.5">
+                      × Quitar lote
+                    </button>
+                  )}
                 </div>
               </div>
 
