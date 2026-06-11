@@ -24,9 +24,9 @@ function AppInitializer() {
 }
 
 function ProtectedApp() {
-  const { session, loading, profile } = useAuth();
+  const { session, loading, profile, profileChecked } = useAuth();
 
-  if (loading) {
+  if (loading || !profileChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#1E3A5F' }}>
         <div className="text-white text-sm opacity-70">Cargando...</div>

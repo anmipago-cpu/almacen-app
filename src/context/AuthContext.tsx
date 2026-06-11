@@ -17,6 +17,7 @@ interface AuthContextValue {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  profileChecked: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
@@ -30,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileChecked, setProfileChecked] = useState(false);
 
   async function loadProfile(userId: string) {
     const { data } = await supabase
@@ -38,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('id', userId)
       .single();
     setProfile((data as UserProfile) || null);
+    setProfileChecked(true);
   }
 
   useEffect(() => {
@@ -47,13 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loadProfile(session.user.id).finally(() => setLoading(false));
       } else {
         setLoading(false);
+        setProfileChecked(true);
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) loadProfile(session.user.id);
-      else { setProfile(null); setLoading(false); }
+      else { setProfile(null); setProfileChecked(true); setLoading(false); }
     });
 
     return () => subscription.unsubscribe();
@@ -67,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     await supabase.auth.signOut();
     setProfile(null);
+    setProfileChecked(false);
   }
 
   async function recargarProfile() {
@@ -77,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isOperario = profile?.rol === 'admin' || profile?.rol === 'operario';
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, profile, loading, signIn, signOut, isAdmin, isOperario, recargarProfile }}>
+    <AuthContext.Provider value={{ session, user: session?.user ?? null, profile, loading, profileChecked, signIn, signOut, isAdmin, isOperario, recargarProfile }}>
       {children}
     </AuthContext.Provider>
   );
