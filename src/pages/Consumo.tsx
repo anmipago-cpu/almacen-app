@@ -21,10 +21,12 @@ const METODOS = [
 interface LineaConsumo {
   id: number;
   producto: Producto;
-  cantidad: number;      // unidades de conteo (ej: CAJA)
-  cantidadBase: number;  // unidades base (ej: UND)
+  cantidad: number;         // unidades de conteo (ej: CAJA)
+  cantidadBase: number;     // unidades base (ej: UND) — lo que se descuenta
   lote: string;
   stock_actual: number;
+  esConteoFisico?: boolean; // true cuando viene de modo "por conteo físico"
+  conteoFisicoBase?: number; // el stock físico ingresado, en base units
 }
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -83,6 +85,7 @@ export function Consumo() {
   const [productoSel, setProductoSel] = useState<Producto | null>(null);
   const [cantidad, setCantidad] = useState('');
   const [tipoUnidad, setTipoUnidad] = useState<'conteo' | 'base'>('conteo');
+  const [modoConteo, setModoConteo] = useState(false);
   const [lote, setLote] = useState('');
   const [productoError, setProductoError] = useState('');
 
@@ -150,20 +153,49 @@ export function Consumo() {
   function agregarLinea() {
     if (!productoSel) { setProductoError('Selecciona un producto'); return; }
     const cant = parseFloat(cantidad.replace(',', '.'));
-    if (!cant || cant <= 0) { toast.error('Ingresa una cantidad válida'); return; }
+    if (isNaN(cant) || cant < 0) { toast.error('Ingresa una cantidad válida'); return; }
     const ya = lineas.find(l => l.producto.code === productoSel.code && l.lote === lote.trim());
     if (ya) { toast.error('Ese producto y lote ya están en la lista'); return; }
     const unitContent = productoSel.unit_content || 1;
-    const cantidadConteo = tipoUnidad === 'conteo' ? cant : cant / unitContent;
-    const cantidadBase   = tipoUnidad === 'conteo' ? cant * unitContent : cant;
-    setLineas(prev => [...prev, {
-      id: ++_lineaId,
-      producto: productoSel,
-      cantidad: cantidadConteo,
-      cantidadBase,
-      lote: lote.trim(),
-      stock_actual: getStockActual(productoSel.code),
-    }]);
+    const stockActualBase = getStockActual(productoSel.code);
+
+    if (modoConteo) {
+      // MODO CONTEO FÍSICO: el usuario ingresa cuánto tiene ahora
+      const conteoFisicoBase = tipoUnidad === 'conteo' ? cant * unitContent : cant;
+      const diferencia = stockActualBase - conteoFisicoBase;
+      if (diferencia <= 0) {
+        toast.error(
+          diferencia === 0
+            ? 'El conteo coincide con el sistema, no hay diferencia'
+            : `El conteo (${formatNumero(conteoFisicoBase, 0)}) es MAYOR que el stock registrado (${formatNumero(stockActualBase, 0)}). Crea una Recepción para la diferencia.`
+        );
+        return;
+      }
+      const cantidadConteo = diferencia / unitContent;
+      setLineas(prev => [...prev, {
+        id: ++_lineaId,
+        producto: productoSel,
+        cantidad: cantidadConteo,
+        cantidadBase: diferencia,
+        lote: lote.trim(),
+        stock_actual: stockActualBase,
+        esConteoFisico: true,
+        conteoFisicoBase,
+      }]);
+    } else {
+      // MODO NORMAL: el usuario ingresa cuánto consumió
+      if (cant <= 0) { toast.error('Ingresa una cantidad mayor a 0'); return; }
+      const cantidadConteo = tipoUnidad === 'conteo' ? cant : cant / unitContent;
+      const cantidadBase   = tipoUnidad === 'conteo' ? cant * unitContent : cant;
+      setLineas(prev => [...prev, {
+        id: ++_lineaId,
+        producto: productoSel,
+        cantidad: cantidadConteo,
+        cantidadBase,
+        lote: lote.trim(),
+        stock_actual: stockActualBase,
+      }]);
+    }
     setProductoSel(null);
     setCantidad('');
     setLote('');
@@ -365,8 +397,25 @@ export function Consumo() {
             </div>
 
             {/* Agregar producto */}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-3">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Agregar producto</p>
+            <div className={`rounded-2xl border p-3 space-y-3 ${modoConteo ? 'border-purple-200 bg-purple-50' : 'border-slate-200 bg-slate-50'}`}>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Agregar producto</p>
+                <div className="flex bg-white border border-slate-200 rounded-xl p-0.5 gap-0.5 shadow-sm">
+                  <button type="button" onClick={() => { setModoConteo(false); setCantidad(''); }}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${!modoConteo ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-700'}`}>
+                    Directo
+                  </button>
+                  <button type="button" onClick={() => { setModoConteo(true); setCantidad(''); setMetodo('AJUSTE'); }}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${modoConteo ? 'bg-purple-600 text-white shadow' : 'text-slate-500 hover:text-slate-700'}`}>
+                    Por conteo físico
+                  </button>
+                </div>
+              </div>
+              {modoConteo && (
+                <div className="rounded-xl bg-purple-100 border border-purple-200 px-3 py-2 text-xs text-purple-800">
+                  Ingresa cuánto tienes físicamente ahora. El sistema calcula y registra la diferencia como <strong>Ajuste</strong>.
+                </div>
+              )}
 
               <ComboboxProducto
                 label=""
@@ -409,9 +458,11 @@ export function Consumo() {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs text-slate-600">
-                      Cantidad en <span className="font-semibold text-slate-800">
-                        {tipoUnidad === 'conteo' ? (productoSel?.unit || 'conteo') : (productoSel?.unit_base || 'base')}
-                      </span> *
+                      {modoConteo ? (
+                        <>Tienes ahora en <span className="font-semibold text-purple-700">{tipoUnidad === 'conteo' ? (productoSel?.unit || 'conteo') : (productoSel?.unit_base || 'base')}</span> *</>
+                      ) : (
+                        <>Consumiste en <span className="font-semibold text-slate-800">{tipoUnidad === 'conteo' ? (productoSel?.unit || 'conteo') : (productoSel?.unit_base || 'base')}</span> *</>
+                      )}
                     </label>
                     {productoSel && (productoSel.unit || productoSel.unit_base) && (
                       <div className="flex bg-slate-200 rounded-lg p-0.5 gap-0.5">
@@ -431,14 +482,35 @@ export function Consumo() {
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); agregarLinea(); } }}
                     placeholder="0"
                     className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                  {productoSel && cantidad && parseFloat(cantidad) > 0 && (productoSel.unit_content ?? 1) > 1 && (
-                    <p className="text-xs text-blue-500 mt-1 font-medium">
-                      {tipoUnidad === 'conteo'
-                        ? `= ${formatNumero(parseFloat(cantidad) * (productoSel.unit_content || 1), 0)} ${productoSel.unit_base || 'und'}`
-                        : `= ${formatNumero(parseFloat(cantidad) / (productoSel.unit_content || 1), 2)} ${productoSel.unit || 'cajas'}`}
-                    </p>
-                  )}
-                  {productoSel && tipoUnidad === 'conteo' && !(productoSel.unit_content ?? 0 > 1) && productoSel.unit !== productoSel.unit_base && (
+                  {productoSel && cantidad && parseFloat(cantidad) >= 0 && (productoSel.unit_content ?? 1) > 1 && (() => {
+                    const cant = parseFloat(cantidad);
+                    const uc = productoSel.unit_content || 1;
+                    const enBase = tipoUnidad === 'conteo' ? cant * uc : cant;
+                    const enConteo = tipoUnidad === 'conteo' ? cant : cant / uc;
+                    if (modoConteo) {
+                      const stockBase = getStockActual(productoSel.code);
+                      const diferencia = stockBase - enBase;
+                      return (
+                        <div className={`mt-1 rounded-lg px-2 py-1.5 text-xs ${diferencia > 0 ? 'bg-purple-100 text-purple-800' : diferencia < 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
+                          {diferencia > 0 ? (
+                            <>Diferencia a ajustar: <strong>{formatNumero(diferencia / uc, 2)} {productoSel.unit}</strong> ({formatNumero(diferencia, 0)} {productoSel.unit_base || 'und'})</>
+                          ) : diferencia < 0 ? (
+                            <>⚠ El conteo supera el stock registrado en {formatNumero(Math.abs(diferencia / uc), 2)} {productoSel.unit}</>
+                          ) : (
+                            <>El conteo coincide con el sistema</>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <p className="text-xs text-blue-500 mt-1 font-medium">
+                        {tipoUnidad === 'conteo'
+                          ? `= ${formatNumero(enBase, 0)} ${productoSel.unit_base || 'und'}`
+                          : `= ${formatNumero(enConteo, 2)} ${productoSel.unit || 'caja'}`}
+                      </p>
+                    );
+                  })()}
+                  {productoSel && tipoUnidad === 'conteo' && !((productoSel.unit_content ?? 0) > 1) && productoSel.unit !== productoSel.unit_base && (
                     <p className="text-xs text-amber-500 mt-1">
                       Sin conversión configurada en catálogo — se guardará como unidades individuales
                     </p>
@@ -470,24 +542,35 @@ export function Consumo() {
                   {lineas.map(linea => {
                     const stockRes = linea.stock_actual - linea.cantidadBase;
                     const colorRes = stockRes < 0 ? 'text-red-600' : stockRes <= linea.producto.stock_min ? 'text-yellow-600' : 'text-emerald-600';
-                    const tieneDobleUnidad = (linea.producto.unit_content ?? 1) !== 1;
+                    const uc = linea.producto.unit_content || 1;
+                    const tieneDobleUnidad = uc !== 1;
                     return (
-                      <div key={linea.id} className="flex items-center gap-2 px-3 py-2.5">
+                      <div key={linea.id} className={`flex items-center gap-2 px-3 py-2.5 ${linea.esConteoFisico ? 'bg-purple-50' : ''}`}>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-xs text-slate-400">{linea.producto.code}</span>
                             <span className="text-sm font-medium text-slate-800 truncate">{linea.producto.name}</span>
+                            {linea.esConteoFisico && <span className="text-xs bg-purple-200 text-purple-700 rounded px-1.5 py-0.5 font-semibold">Conteo</span>}
                           </div>
-                          <div className="flex items-center gap-3 mt-0.5">
-                            <span className="text-xs text-slate-500">
-                              {tieneDobleUnidad
-                                ? <>{formatNumero(linea.cantidad, 2)} {linea.producto.unit || 'unid'} <span className="text-slate-400">= {formatNumero(linea.cantidadBase, 0)} {linea.producto.unit_base || ''}</span></>
-                                : <>{formatNumero(linea.cantidadBase, 0)} {linea.producto.unit || 'unid'}</>
-                              }
-                              {linea.lote && <> · <span className="text-blue-600">Lote: {linea.lote}</span></>}
-                            </span>
+                          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                            {linea.esConteoFisico ? (
+                              <span className="text-xs text-slate-500">
+                                Físico: <strong>{tieneDobleUnidad ? `${formatNumero(linea.conteoFisicoBase! / uc, 2)} ${linea.producto.unit}` : formatNumero(linea.conteoFisicoBase!, 0)}</strong>
+                                {' · '}Sistema: <strong>{tieneDobleUnidad ? `${formatNumero(linea.stock_actual / uc, 2)} ${linea.producto.unit}` : formatNumero(linea.stock_actual, 0)}</strong>
+                                {' · '}Ajuste: <span className="text-purple-700 font-semibold">-{tieneDobleUnidad ? `${formatNumero(linea.cantidad, 2)} ${linea.producto.unit}` : formatNumero(linea.cantidadBase, 0)}</span>
+                                {linea.lote && <> · <span className="text-blue-600">Lote: {linea.lote}</span></>}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-500">
+                                {tieneDobleUnidad
+                                  ? <>{formatNumero(linea.cantidad, 2)} {linea.producto.unit} <span className="text-slate-400">= {formatNumero(linea.cantidadBase, 0)} {linea.producto.unit_base || ''}</span></>
+                                  : <>{formatNumero(linea.cantidadBase, 0)} {linea.producto.unit || 'unid'}</>
+                                }
+                                {linea.lote && <> · <span className="text-blue-600">Lote: {linea.lote}</span></>}
+                              </span>
+                            )}
                             <span className={`text-xs font-semibold ${colorRes}`}>
-                              → {formatNumero(stockRes, 0)}
+                              → {tieneDobleUnidad ? `${formatNumero(stockRes / uc, 2)} ${linea.producto.unit}` : formatNumero(stockRes, 0)}
                             </span>
                           </div>
                         </div>
