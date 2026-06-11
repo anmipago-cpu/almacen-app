@@ -372,31 +372,54 @@ export function Consumo() {
                 label=""
                 productos={productos.filter(p => p.active !== false)}
                 value={productoSel}
-                onChange={p => { setProductoSel(p); setProductoError(''); }}
+                onChange={p => { setProductoSel(p); setProductoError(''); setTipoUnidad('conteo'); setCantidad(''); }}
                 disabled={loadingProd}
                 error={productoError}
               />
 
-              {productoSel && (
-                <div className="flex items-center justify-between rounded-xl bg-white border border-slate-200 px-3 py-2 text-sm">
-                  <span className="text-slate-500 text-xs">Stock actual</span>
-                  <span className="font-mono font-bold text-slate-800">
-                    {formatNumero(getStockActual(productoSel.code))} {productoSel.unit || ''}
-                  </span>
-                </div>
-              )}
+              {productoSel && (() => {
+                const stockBase = getStockActual(productoSel.code);
+                const uc = productoSel.unit_content ?? 1;
+                return (
+                  <div className="rounded-xl bg-white border border-slate-200 px-3 py-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 text-xs">Stock disponible</span>
+                      <div className="text-right">
+                        {uc > 1 ? (
+                          <>
+                            <span className="font-mono font-bold text-slate-800">
+                              {formatNumero(stockBase / uc, 1)} {productoSel.unit}
+                            </span>
+                            <span className="ml-2 text-xs text-slate-400">
+                              ({formatNumero(stockBase, 0)} {productoSel.unit_base || 'und'})
+                            </span>
+                          </>
+                        ) : (
+                          <span className="font-mono font-bold text-slate-800">
+                            {formatNumero(stockBase, 0)} {productoSel.unit_base || productoSel.unit || 'und'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs text-slate-600">Cantidad *</label>
-                    {productoSel && (productoSel.unit_content ?? 1) !== 1 && (
+                    <label className="text-xs text-slate-600">
+                      Cantidad en <span className="font-semibold text-slate-800">
+                        {tipoUnidad === 'conteo' ? (productoSel?.unit || 'conteo') : (productoSel?.unit_base || 'base')}
+                      </span> *
+                    </label>
+                    {productoSel && (productoSel.unit || productoSel.unit_base) && (
                       <div className="flex bg-slate-200 rounded-lg p-0.5 gap-0.5">
-                        <button type="button" onClick={() => setTipoUnidad('conteo')}
+                        <button type="button" onClick={() => { setTipoUnidad('conteo'); setCantidad(''); }}
                           className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${tipoUnidad === 'conteo' ? 'bg-white shadow text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>
                           {productoSel.unit || 'Conteo'}
                         </button>
-                        <button type="button" onClick={() => setTipoUnidad('base')}
+                        <button type="button" onClick={() => { setTipoUnidad('base'); setCantidad(''); }}
                           className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${tipoUnidad === 'base' ? 'bg-white shadow text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>
                           {productoSel.unit_base || 'Base'}
                         </button>
@@ -408,11 +431,16 @@ export function Consumo() {
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); agregarLinea(); } }}
                     placeholder="0"
                     className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                  {productoSel && cantidad && parseFloat(cantidad) > 0 && (productoSel.unit_content ?? 1) !== 1 && (
-                    <p className="text-xs text-slate-400 mt-1">
+                  {productoSel && cantidad && parseFloat(cantidad) > 0 && (productoSel.unit_content ?? 1) > 1 && (
+                    <p className="text-xs text-blue-500 mt-1 font-medium">
                       {tipoUnidad === 'conteo'
-                        ? `= ${formatNumero(parseFloat(cantidad) * (productoSel.unit_content || 1), 0)} ${productoSel.unit_base || ''}`
-                        : `= ${formatNumero(parseFloat(cantidad) / (productoSel.unit_content || 1), 2)} ${productoSel.unit || ''}`}
+                        ? `= ${formatNumero(parseFloat(cantidad) * (productoSel.unit_content || 1), 0)} ${productoSel.unit_base || 'und'}`
+                        : `= ${formatNumero(parseFloat(cantidad) / (productoSel.unit_content || 1), 2)} ${productoSel.unit || 'cajas'}`}
+                    </p>
+                  )}
+                  {productoSel && tipoUnidad === 'conteo' && !(productoSel.unit_content ?? 0 > 1) && productoSel.unit !== productoSel.unit_base && (
+                    <p className="text-xs text-amber-500 mt-1">
+                      Sin conversión configurada en catálogo — se guardará como unidades individuales
                     </p>
                   )}
                 </div>
