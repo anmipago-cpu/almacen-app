@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Save, RotateCcw, Database, Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Save, RotateCcw, Database, Package, ChevronLeft, ChevronRight, Pencil, Trash2, Check, X } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -64,7 +64,51 @@ export function Recepcion() {
   const [fechaDesdeHistorial, setFechaDesdeHistorial] = useState('');
   const [fechaHastaHistorial, setFechaHastaHistorial] = useState('');
 
-  const historialFiltrado = historial.filter(rec => {
+  // Edición/eliminación inline
+  const [historialLocal, setHistorialLocal] = useState<Registro[]>([]);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<Partial<Registro>>({});
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState<string | null>(null);
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+
+  useEffect(() => { setHistorialLocal(historial); }, [historial]);
+
+  async function guardarEdicion() {
+    if (!editandoId) return;
+    setGuardandoEdicion(true);
+    const prod = productos.find(p => p.code === editData.producto_code);
+    const contenido = prod?.unit_content ?? editData.contenido_por_unidad ?? 1;
+    const total = (editData.cantidad_unidad_natural || 0) * contenido;
+    const payload = {
+      fecha: editData.fecha ?? '',
+      lote: editData.lote || null,
+      fecha_vencimiento: editData.fecha_vencimiento || null,
+      po: editData.po || null,
+      proveedor: editData.proveedor ?? '',
+      recibido_por: editData.recibido_por ?? '',
+      cantidad_unidad_natural: editData.cantidad_unidad_natural ?? 0,
+      contenido_por_unidad: contenido,
+      total_unidades_base: total,
+      observaciones: editData.observaciones || null,
+    };
+    const { error } = await supabase.from('recepciones').update(payload).eq('id', editandoId);
+    if (error) { toast.error(error.message); setGuardandoEdicion(false); return; }
+    setHistorialLocal(prev => prev.map(r => r.id === editandoId ? ({ ...r, ...payload } as Registro) : r));
+    setEditandoId(null);
+    setEditData({});
+    setGuardandoEdicion(false);
+    toast.success('Registro actualizado');
+  }
+
+  async function eliminarRegistro(id: string) {
+    const { error } = await supabase.from('recepciones').delete().eq('id', id);
+    if (error) { toast.error(error.message); return; }
+    setHistorialLocal(prev => prev.filter(r => r.id !== id));
+    setConfirmandoEliminar(null);
+    toast.success('Registro eliminado');
+  }
+
+  const historialFiltrado = historialLocal.filter(rec => {
     const q = busquedaHistorial.toLowerCase();
     const matchText = !busquedaHistorial ||
       rec.producto_code.toLowerCase().includes(q) ||
@@ -679,6 +723,7 @@ export function Recepcion() {
                     <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Conteo</th>
                     <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Base</th>
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500">Observaciones</th>
+                    <th className="px-3 py-2.5 text-center font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap w-[80px]">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -686,6 +731,92 @@ export function Recepcion() {
                     const prod = productos.find(p => p.code === rec.producto_code);
                     const unitConteo = rec.unidad_natural || prod?.unit || '';
                     const unitBase = prod?.unit_base || '';
+                    const isEditing = editandoId === rec.id;
+                    const isConfirmingDelete = confirmandoEliminar === rec.id;
+                    const totalEditado = (editData.cantidad_unidad_natural || 0) * (prod?.unit_content ?? rec.contenido_por_unidad ?? 1);
+
+                    if (isEditing) {
+                      return (
+                        <tr key={rec.id ?? i} className="bg-blue-50 border-l-2 border-blue-400">
+                          <td className="px-2 py-1.5">
+                            <input type="date" value={editData.fecha || ''} onChange={e => setEditData(p => ({ ...p, fecha: e.target.value }))}
+                              className="w-full rounded border border-blue-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          </td>
+                          <td className="px-3 py-2">
+                            <span className="font-mono text-xs text-slate-500 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5">{rec.producto_code}</span>
+                          </td>
+                          <td className="px-3 py-2 text-xs text-slate-600 max-w-[160px] truncate">{rec.producto_name}</td>
+                          <td className="px-2 py-1.5">
+                            <input type="text" value={editData.lote || ''} onChange={e => setEditData(p => ({ ...p, lote: e.target.value }))}
+                              placeholder="Lote" className="w-full rounded border border-blue-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input type="date" value={editData.fecha_vencimiento || ''} onChange={e => setEditData(p => ({ ...p, fecha_vencimiento: e.target.value }))}
+                              className="w-full rounded border border-blue-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input type="text" value={editData.po || ''} onChange={e => setEditData(p => ({ ...p, po: e.target.value }))}
+                              placeholder="PO" className="w-full rounded border border-blue-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <select value={editData.proveedor || ''} onChange={e => setEditData(p => ({ ...p, proveedor: e.target.value }))}
+                              className="w-full rounded border border-blue-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
+                              {proveedores.map(pv => <option key={pv.code} value={pv.name}>{pv.name}</option>)}
+                              <option value="Otro / No identificado">Otro / No identificado</option>
+                            </select>
+                          </td>
+                          <td className="px-2 py-1.5 text-right">
+                            <input type="number" min="0.001" step="any" value={editData.cantidad_unidad_natural || ''} onChange={e => setEditData(p => ({ ...p, cantidad_unidad_natural: parseFloat(e.target.value) || 0 }))}
+                              className="w-20 rounded border border-blue-300 px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          </td>
+                          <td className="px-3 py-2 text-right text-xs font-mono font-semibold text-emerald-700">{formatNumero(totalEditado, 0)}</td>
+                          <td className="px-2 py-1.5">
+                            <input type="text" value={editData.observaciones || ''} onChange={e => setEditData(p => ({ ...p, observaciones: e.target.value }))}
+                              placeholder="Observaciones" className="w-full rounded border border-blue-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <div className="flex items-center justify-center gap-1">
+                              <button onClick={guardarEdicion} disabled={guardandoEdicion} title="Guardar cambios"
+                                className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                                <Check size={13} />
+                              </button>
+                              <button onClick={() => { setEditandoId(null); setEditData({}); }} title="Cancelar"
+                                className="p-1.5 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors">
+                                <X size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    if (isConfirmingDelete) {
+                      return (
+                        <tr key={rec.id ?? i} className="bg-red-50 border-l-2 border-red-400">
+                          <td colSpan={10} className="px-4 py-2.5 text-sm text-red-700">
+                            <span className="font-semibold">¿Eliminar este registro?</span>
+                            <span className="ml-2 text-red-500 text-xs">
+                              {formatFecha(rec.fecha)} · {rec.producto_code} · {rec.producto_name}
+                              {rec.lote && ` · Lote: ${rec.lote}`}
+                            </span>
+                            <span className="ml-1 text-red-400 text-xs font-medium">— Esta acción actualiza el inventario automáticamente.</span>
+                          </td>
+                          <td className="px-2 py-2.5">
+                            <div className="flex items-center justify-center gap-1">
+                              <button onClick={() => eliminarRegistro(rec.id!)} title="Confirmar eliminación"
+                                className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
+                                <Check size={13} />
+                              </button>
+                              <button onClick={() => setConfirmandoEliminar(null)} title="Cancelar"
+                                className="p-1.5 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors">
+                                <X size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
+
                     return (
                       <tr key={rec.id ?? i} className="hover:bg-blue-50/40 transition-colors">
                         <td className="px-3 py-2 whitespace-nowrap text-slate-500">{formatFecha(rec.fecha)}</td>
@@ -718,6 +849,22 @@ export function Recepcion() {
                         <td className="px-3 py-2 text-slate-400 text-xs max-w-[180px] truncate" title={rec.observaciones || ''}>
                           {rec.observaciones || '—'}
                         </td>
+                        <td className="px-2 py-2">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => { setEditandoId(rec.id!); setEditData({ ...rec }); setConfirmandoEliminar(null); }}
+                              title="Editar registro"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              onClick={() => { setConfirmandoEliminar(rec.id!); setEditandoId(null); }}
+                              title="Eliminar registro"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -733,6 +880,7 @@ export function Recepcion() {
                     <td className="px-3 py-2.5 text-right font-mono font-bold text-emerald-700">
                       {formatNumero(historialFiltrado.reduce((s, r) => s + (r.total_unidades_base || 0), 0), 0)}
                     </td>
+                    <td />
                   </tr>
                 </tfoot>
               </table>
