@@ -16,8 +16,7 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   profile: UserProfile | null;
-  loading: boolean;
-  profileChecked: boolean;
+  ready: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
@@ -27,37 +26,40 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+async function fetchProfile(userId: string): Promise<UserProfile | null> {
+  const { data } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  return (data as UserProfile) || null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [profileChecked, setProfileChecked] = useState(false);
-
-  async function loadProfile(userId: string) {
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    setProfile((data as UserProfile) || null);
-    setProfileChecked(true);
-  }
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Initial check — runs once on mount
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        loadProfile(session.user.id).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-        setProfileChecked(true);
+        const p = await fetchProfile(session.user.id);
+        setProfile(p);
       }
+      setReady(true);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Subsequent auth changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
-      if (session?.user) loadProfile(session.user.id);
-      else { setProfile(null); setProfileChecked(true); setLoading(false); }
+      if (session?.user) {
+        const p = await fetchProfile(session.user.id);
+        setProfile(p);
+      } else {
+        setProfile(null);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -70,19 +72,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     await supabase.auth.signOut();
-    setProfile(null);
-    setProfileChecked(false);
   }
 
   async function recargarProfile() {
-    if (session?.user) await loadProfile(session.user.id);
+    if (session?.user) {
+      const p = await fetchProfile(session.user.id);
+      setProfile(p);
+    }
   }
 
   const isAdmin = profile?.rol === 'admin';
   const isOperario = profile?.rol === 'admin' || profile?.rol === 'operario';
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, profile, loading, profileChecked, signIn, signOut, isAdmin, isOperario, recargarProfile }}>
+    <AuthContext.Provider value={{
+      session, user: session?.user ?? null, profile, ready,
+      signIn, signOut, isAdmin, isOperario, recargarProfile
+    }}>
       {children}
     </AuthContext.Provider>
   );

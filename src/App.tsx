@@ -24,9 +24,9 @@ function AppInitializer() {
 }
 
 function ProtectedApp() {
-  const { session, loading, profile, profileChecked } = useAuth();
+  const { session, ready, profile } = useAuth();
 
-  if (loading || !profileChecked) {
+  if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#1E3A5F' }}>
         <div className="text-white text-sm opacity-70">Cargando...</div>
@@ -36,7 +36,7 @@ function ProtectedApp() {
 
   if (!session) return <Login />;
 
-  if (!loading && session && !profile) {
+  if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#1E3A5F' }}>
         <div className="bg-white rounded-3xl p-8 shadow-2xl text-center max-w-sm mx-4">
