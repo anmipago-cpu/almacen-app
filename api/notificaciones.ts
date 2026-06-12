@@ -107,41 +107,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const hoy = fecha();
   const results: Record<string, string> = {};
 
-  // ── WhatsApp via CallMeBot ─────────────────────────────────────────────
-  const waPhone  = process.env.CALLMEBOT_PHONE;
-  const waApiKey = process.env.CALLMEBOT_APIKEY;
-  if (waPhone && waApiKey) {
+  // ── WhatsApp via CallMeBot (soporta múltiples números) ────────────────
+  const waPhones  = (process.env.CALLMEBOT_PHONE  ?? '').split(',').map(s => s.trim()).filter(Boolean);
+  const waApiKeys = (process.env.CALLMEBOT_APIKEY ?? '').split(',').map(s => s.trim()).filter(Boolean);
+  if (waPhones.length && waApiKeys.length) {
     const text = encodeURIComponent(buildWhatsApp(productos, hoy));
-    const url  = `https://api.callmebot.com/whatsapp.php?phone=${waPhone}&text=${text}&apikey=${waApiKey}`;
-    try {
-      const r = await fetch(url);
-      results.whatsapp = r.ok ? 'enviado' : `error ${r.status}`;
-    } catch (e) {
-      results.whatsapp = `error: ${(e as Error).message}`;
+    const waResults: string[] = [];
+    for (let i = 0; i < waPhones.length; i++) {
+      const phone  = waPhones[i];
+      const apikey = waApiKeys[i] ?? waApiKeys[0]; // si hay menos keys que números, reutiliza la primera
+      const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${text}&apikey=${apikey}`;
+      try {
+        // CallMeBot requiere esperar 1s entre mensajes
+        if (i > 0) await new Promise(r => setTimeout(r, 1500));
+        const r = await fetch(url);
+        waResults.push(`${phone}: ${r.ok ? 'ok' : `error ${r.status}`}`);
+      } catch (e) {
+        waResults.push(`${phone}: error ${(e as Error).message}`);
+      }
     }
+    results.whatsapp = waResults.join(' | ');
   } else {
     results.whatsapp = 'no configurado (faltan CALLMEBOT_PHONE / CALLMEBOT_APIKEY)';
   }
 
-  // ── Email via Resend ───────────────────────────────────────────────────
+  // ── Email via Resend (soporta múltiples destinatarios) ─────────────────
   const resendKey = process.env.RESEND_API_KEY;
-  const emailTo   = process.env.ALERT_EMAIL_TO;
-  const emailFrom = process.env.ALERT_EMAIL_FROM ?? 'Almacén App <onboarding@resend.dev>';
-  if (resendKey && emailTo) {
+  const emailTos  = (process.env.ALERT_EMAIL_TO ?? '').split(',').map(s => s.trim()).filter(Boolean);
+  const emailFrom = process.env.ALERT_EMAIL_FROM ?? 'onboarding@resend.dev';
+  if (resendKey && emailTos.length) {
     const resend = new Resend(resendKey);
     const codigos = productos.slice(0, 3).map(p => p.code).join(', ') + (productos.length > 3 ? '...' : '');
     const subject = `[STOCK ${hoy}] ${productos.length} alerta(s) – ${codigos}`;
-    try {
-      const { error } = await resend.emails.send({
-        from: emailFrom,
-        to: emailTo,
-        subject,
-        html: buildEmailHtml(productos, hoy),
-      });
-      results.email = error ? `error: ${error.message}` : 'enviado';
-    } catch (e) {
-      results.email = `error: ${(e as Error).message}`;
+    const emailResults: string[] = [];
+    for (const to of emailTos) {
+      try {
+        const { error } = await resend.emails.send({ from: emailFrom, to, subject, html: buildEmailHtml(productos, hoy) });
+        emailResults.push(`${to}: ${error ? `error ${error.message}` : 'ok'}`);
+      } catch (e) {
+        emailResults.push(`${to}: error ${(e as Error).message}`);
+      }
     }
+    results.email = emailResults.join(' | ');
   } else {
     results.email = 'no configurado (faltan RESEND_API_KEY / ALERT_EMAIL_TO)';
   }
