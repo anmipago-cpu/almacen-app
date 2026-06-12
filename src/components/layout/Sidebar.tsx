@@ -21,7 +21,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/recepciones',     icon: PackagePlus,     label: 'Recepciones',        roles: ['admin', 'operario'] },
   { to: '/inventario',      icon: BarChart2,       label: 'Inventario',         roles: ['admin', 'operario', 'consulta'] },
   { to: '/inventario-fisico', icon: Boxes,         label: 'Inventario Físico',  roles: ['admin', 'operario'] },
-  { to: '/consumo-semanal', icon: PackageMinus,    label: 'Consumo Semanal',    roles: ['admin', 'operario'] },
+  { to: '/consumo-semanal', icon: PackageMinus,    label: 'Consumo',            roles: ['admin', 'operario'] },
   { to: '/alarmas',         icon: AlertTriangle,   label: 'Alarmas',            roles: ['admin', 'operario', 'consulta'] },
   { to: '/historial',       icon: ClipboardList,   label: 'Historial',          roles: ['admin', 'operario', 'consulta'] },
   { to: '/catalogo',        icon: Archive,         label: 'Catálogo',           roles: ['admin'] },
