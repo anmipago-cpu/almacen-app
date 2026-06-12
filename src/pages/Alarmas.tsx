@@ -14,10 +14,11 @@ function getSemaforo(item: InventarioItem) {
   const lt = item.lead_time_semanas;
   if (lt && lt > 0 && item.promedio_consumo_semanal > 0) {
     const semanas = item.stock_actual / item.promedio_consumo_semanal;
-    if (semanas <= lt) return 'ROJO';
-    if (semanas <= lt * 2) return 'AMARILLO';
-    return 'VERDE';
+    if (semanas <= lt)     return 'ROJO';      // ≤ lead_time semanas
+    if (semanas <= lt + 1) return 'AMARILLO';  // ≤ lead_time + 1 semana
+    return 'VERDE';                            // > lead_time + 1 semana
   }
+  // Fallback: umbrales absolutos (cuando no hay consumo configurado)
   if (item.stock_min > 0 && item.stock_actual <= item.stock_min) return 'ROJO';
   if (item.stock_bajo > 0 && item.stock_actual <= item.stock_bajo) return 'AMARILLO';
   return 'VERDE';

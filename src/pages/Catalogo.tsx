@@ -35,6 +35,7 @@ const EMPTY_FORM = {
   stock_min: '0',
   stock_bajo: '0',
   lead_time_semanas: '',
+  consumo_promedio_semanal: '',
   requires_lot: false,
   requires_expiry: false,
   active: true,
@@ -152,6 +153,7 @@ export function Catalogo() {
       'Stock mínimo': p.stock_min,
       'Stock alerta': p.stock_bajo,
       'Lead time (sem)': p.lead_time_semanas ?? '',
+      'Consumo sem.': p.consumo_promedio_semanal ?? '',
       'Requiere lote': p.requires_lot ? 'Sí' : 'No',
       'Requiere vencimiento': p.requires_expiry ? 'Sí' : 'No',
       Activo: p.active ? 'Sí' : 'No',
@@ -200,6 +202,7 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
       stock_min: Number(form.stock_min) || 0,
       stock_bajo: Number(form.stock_bajo) || 0,
       lead_time_semanas: form.lead_time_semanas !== '' ? Number(form.lead_time_semanas) : null,
+      consumo_promedio_semanal: form.consumo_promedio_semanal !== '' ? Number(form.consumo_promedio_semanal) : null,
       requires_lot: Boolean(form.requires_lot),
       requires_expiry: Boolean(form.requires_expiry),
       active: Boolean(form.active),
@@ -508,7 +511,8 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
             </Select>
             <Input label="Stock mínimo" type="number" value={form.stock_min} onChange={e => handleField('stock_min', e.target.value)} />
             <Input label="Stock alerta" type="number" value={form.stock_bajo} onChange={e => handleField('stock_bajo', e.target.value)} />
-            <Input label="Lead time (semanas)" type="number" value={form.lead_time_semanas} onChange={e => handleField('lead_time_semanas', e.target.value)} placeholder="Ej: 2" />
+            <Input label="Lead time (semanas)" type="number" value={form.lead_time_semanas} onChange={e => handleField('lead_time_semanas', e.target.value)} placeholder="Ej: 3" />
+            <Input label="Consumo promedio semanal" type="number" value={form.consumo_promedio_semanal} onChange={e => handleField('consumo_promedio_semanal', e.target.value)} placeholder="Ej: 2400" />
             <div className="flex flex-wrap items-center gap-4">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.requires_lot} onChange={e => handleField('requires_lot', e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
@@ -617,6 +621,7 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                 <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Stock mín.</th>
                 <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Stock alerta</th>
                 <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Lead time</th>
+                <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[110px]">Consumo sem.</th>
                 <th className="px-3 py-2 text-center font-semibold text-slate-700 min-w-[80px]">Req. lote</th>
                 <th className="px-3 py-2 text-center font-semibold text-slate-700 min-w-[80px]">Req. vence</th>
                 <th className="px-3 py-2 text-center font-semibold text-slate-700 min-w-[70px]">Activo</th>
@@ -813,6 +818,19 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                         />
                       ) : (
                         <span className="text-slate-700">{product.lead_time_semanas ?? '—'}</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2">
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          value={cambios.consumo_promedio_semanal ?? product.consumo_promedio_semanal ?? ''}
+                          onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], consumo_promedio_semanal: e.target.value === '' ? undefined : Number(e.target.value) } }))}
+                          className="w-20 rounded border border-slate-200 px-1 py-0.5 text-xs"
+                          placeholder="—"
+                        />
+                      ) : (
+                        <span className="text-slate-700">{product.consumo_promedio_semanal ?? '—'}</span>
                       )}
                     </td>
                     <td className="px-2 py-2 text-center">

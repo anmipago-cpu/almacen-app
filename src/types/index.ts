@@ -16,6 +16,7 @@ export interface Producto {
   stock_min: number;
   stock_bajo: number;
   lead_time_semanas?: number;
+  consumo_promedio_semanal?: number;
   requires_lot?: boolean;
   requires_expiry?: boolean;
   active?: boolean;
