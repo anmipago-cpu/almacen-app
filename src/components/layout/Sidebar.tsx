@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard, PackagePlus, PackageMinus,
+  LayoutDashboard, PackagePlus, PackageMinus, // nav icons
   Boxes, ClipboardList, ChevronLeft, ChevronRight,
   Archive, AlertTriangle, Settings, BarChart2, Users, LogOut, Search, X
 } from 'lucide-react';
