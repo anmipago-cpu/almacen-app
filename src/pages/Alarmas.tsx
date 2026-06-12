@@ -138,9 +138,11 @@ export function Alarmas() {
       const estado = getSemaforo(item);
       currentStates[item.code] = estado;
       if (estado === 'VERDE') return;
-      const prevSev = SEVERIDAD[lastStates[item.code]] ?? -1;
+      const prev = lastStates[item.code];
+      if (prev === undefined) return; // primera vez: registrar sin notificar
+      const prevSev = SEVERIDAD[prev] ?? 0;
       const currSev = SEVERIDAD[estado] ?? 0;
-      if (currSev > prevSev) newAlerts.push(item);
+      if (currSev > prevSev) newAlerts.push(item); // solo si empeoró
     });
 
     localStorage.setItem(KEY, JSON.stringify(currentStates));
