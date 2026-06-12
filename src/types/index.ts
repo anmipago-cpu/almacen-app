@@ -186,7 +186,7 @@ export function getEstado(item: Pick<InventarioItem, 'stock_actual' | 'stock_min
 
 export const ESTADO_CONFIG = {
   OK:      { label: 'OK',      bg: 'bg-green-100',  text: 'text-green-700',  dot: 'bg-green-500'  },
-  BAJO:    { label: 'BAJO',    bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500' },
+  BAJO:    { label: 'ALERTA',  bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500' },
   CRITICO: { label: 'CRÍTICO', bg: 'bg-red-100',    text: 'text-red-700',    dot: 'bg-red-500'    },
-  AGOTADO: { label: 'AGOTADO', bg: 'bg-gray-200',   text: 'text-gray-700',   dot: 'bg-gray-500'   },
+  AGOTADO: { label: 'AGOTADO', bg: 'bg-slate-900',  text: 'text-slate-100',  dot: 'bg-slate-400'  },
 };

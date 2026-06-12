@@ -70,7 +70,7 @@ export function Alarmas() {
       Proveedor: item.supplier || '',
       'Stock actual': item.stock_actual,
       'Stock mín.': item.stock_min,
-      'Stock bajo': item.stock_bajo,
+      'Stock alerta': item.stock_bajo,
       'Lead time (sem)': item.lead_time_semanas ?? '',
       'Promedio semanal': item.promedio_consumo_semanal,
       'Semanas restantes': item.lead_time_semanas && item.promedio_consumo_semanal > 0
@@ -93,19 +93,24 @@ export function Alarmas() {
       />
 
       <Card className="mb-5">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+          <div className="rounded-3xl border border-slate-800 bg-slate-900 p-4">
+            <p className="text-sm font-medium text-slate-300">Sin stock</p>
+            <p className="mt-2 text-3xl font-bold text-white">{enriched.filter(i => getSemaforo(i) === 'AGOTADO').length}</p>
+            <p className="text-sm text-slate-400">Stock = 0</p>
+          </div>
           <div className="rounded-3xl border border-slate-200 bg-red-50 p-4">
-            <p className="text-sm font-medium text-red-700">Rojo — Crítico</p>
+            <p className="text-sm font-medium text-red-700">Crítico</p>
             <p className="mt-2 text-3xl font-bold text-slate-900">{enriched.filter(i => getSemaforo(i) === 'ROJO').length}</p>
-            <p className="text-sm text-slate-500">Reabastecer urgente</p>
+            <p className="text-sm text-slate-500">≤ Stock mínimo</p>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-amber-50 p-4">
-            <p className="text-sm font-medium text-amber-700">Amarillo — Bajo</p>
+            <p className="text-sm font-medium text-amber-700">Alerta</p>
             <p className="mt-2 text-3xl font-bold text-slate-900">{enriched.filter(i => getSemaforo(i) === 'AMARILLO').length}</p>
-            <p className="text-sm text-slate-500">Planificar pedido pronto</p>
+            <p className="text-sm text-slate-500">≤ Stock alerta</p>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-emerald-50 p-4">
-            <p className="text-sm font-medium text-emerald-700">Verde — OK</p>
+            <p className="text-sm font-medium text-emerald-700">OK</p>
             <p className="mt-2 text-3xl font-bold text-slate-900">{enriched.filter(i => getSemaforo(i) === 'VERDE').length}</p>
             <p className="text-sm text-slate-500">Stock suficiente</p>
           </div>
@@ -130,7 +135,7 @@ export function Alarmas() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {['Código', 'Nombre', 'Categoría', 'Stock actual', 'Stock mín.', 'Stock bajo', 'Lead time', 'Promedio sem.', 'Semanas restantes', 'Estado'].map(header => (
+                  {['Código', 'Nombre', 'Categoría', 'Stock actual', 'Stock mín.', 'Stock alerta', 'Lead time', 'Promedio sem.', 'Semanas restantes', 'Estado'].map(header => (
                     <th key={header} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{header}</th>
                   ))}
                 </tr>

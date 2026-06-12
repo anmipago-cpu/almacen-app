@@ -147,7 +147,7 @@ export function Catalogo() {
       'Contenido unidad': p.unit_content,
       'Unidad base': p.unit_base,
       'Stock mínimo': p.stock_min,
-      'Stock bajo': p.stock_bajo,
+      'Stock alerta': p.stock_bajo,
       'Lead time (sem)': p.lead_time_semanas ?? '',
       'Requiere lote': p.requires_lot ? 'Sí' : 'No',
       'Requiere vencimiento': p.requires_expiry ? 'Sí' : 'No',
@@ -504,7 +504,7 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
               {unidadesBase.map(u => <option key={u} value={u}>{u}</option>)}
             </Select>
             <Input label="Stock mínimo" type="number" value={form.stock_min} onChange={e => handleField('stock_min', e.target.value)} />
-            <Input label="Stock bajo" type="number" value={form.stock_bajo} onChange={e => handleField('stock_bajo', e.target.value)} />
+            <Input label="Stock alerta" type="number" value={form.stock_bajo} onChange={e => handleField('stock_bajo', e.target.value)} />
             <Input label="Lead time (semanas)" type="number" value={form.lead_time_semanas} onChange={e => handleField('lead_time_semanas', e.target.value)} placeholder="Ej: 2" />
             <div className="flex flex-wrap items-center gap-4">
               <label className="flex items-center gap-2 text-sm">
@@ -609,7 +609,7 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                 <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[120px]">Unidad de conteo</th>
                 <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[110px]">Unidad base</th>
                 <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Stock mín.</th>
-                <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Stock bajo</th>
+                <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Stock alerta</th>
                 <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Lead time</th>
                 <th className="px-3 py-2 text-center font-semibold text-slate-700 min-w-[80px]">Req. lote</th>
                 <th className="px-3 py-2 text-center font-semibold text-slate-700 min-w-[80px]">Req. vence</th>
