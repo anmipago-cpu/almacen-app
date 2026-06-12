@@ -19,9 +19,7 @@ function getSemaforo(item: InventarioItem) {
     return 'VERDE';
   }
   if (item.stock_min > 0 && item.stock_actual <= item.stock_min) return 'ROJO';
-  // Si stock_alerta no está configurado, se deriva automáticamente como stock_min × 2
-  const alerta = item.stock_bajo > 0 ? item.stock_bajo : item.stock_min * 2;
-  if (alerta > 0 && item.stock_actual <= alerta) return 'AMARILLO';
+  if (item.stock_bajo > 0 && item.stock_actual <= item.stock_bajo) return 'AMARILLO';
   return 'VERDE';
 }
 
