@@ -801,7 +801,7 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                         <input
                           type="number"
                           value={cambios.lead_time_semanas ?? product.lead_time_semanas ?? ''}
-                          onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], lead_time_semanas: e.target.value === '' ? null : Number(e.target.value) } }))}
+                          onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], lead_time_semanas: e.target.value === '' ? undefined : Number(e.target.value) } }))}
                           className="w-16 rounded border border-slate-200 px-1 py-0.5 text-xs"
                           placeholder="—"
                         />
