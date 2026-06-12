@@ -49,15 +49,18 @@ export function Alarmas() {
     }));
   }, [inventario, leadTimeMap]);
 
+  const configurados = useMemo(() => enriched.filter(item => {
+    const lt = item.lead_time_semanas;
+    return (lt && lt > 0 && item.promedio_consumo_semanal > 0) || item.stock_min > 0 || item.stock_bajo > 0;
+  }), [enriched]);
+
   const datos = useMemo(() => {
     return enriched
       .filter(item => {
         const lt = item.lead_time_semanas;
         const tieneLeadTime = lt && lt > 0 && item.promedio_consumo_semanal > 0;
         const tieneUmbrales = item.stock_min > 0 || item.stock_bajo > 0;
-        if (!tieneLeadTime && !tieneUmbrales) return false;
-        const estado = getSemaforo(item);
-        return estado === 'ROJO' || estado === 'AMARILLO' || estado === 'AGOTADO';
+        return tieneLeadTime || tieneUmbrales;
       })
       .sort((a, b) => {
         const score = (item: InventarioItem) => {
@@ -106,22 +109,22 @@ export function Alarmas() {
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
           <div className="rounded-3xl border border-slate-800 bg-slate-900 p-4">
             <p className="text-sm font-medium text-slate-300">Sin stock</p>
-            <p className="mt-2 text-3xl font-bold text-white">{enriched.filter(i => getSemaforo(i) === 'AGOTADO').length}</p>
+            <p className="mt-2 text-3xl font-bold text-white">{configurados.filter(i => getSemaforo(i) === 'AGOTADO').length}</p>
             <p className="text-sm text-slate-400">Stock = 0</p>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-red-50 p-4">
             <p className="text-sm font-medium text-red-700">Crítico</p>
-            <p className="mt-2 text-3xl font-bold text-slate-900">{enriched.filter(i => getSemaforo(i) === 'ROJO').length}</p>
+            <p className="mt-2 text-3xl font-bold text-slate-900">{configurados.filter(i => getSemaforo(i) === 'ROJO').length}</p>
             <p className="text-sm text-slate-500">≤ Stock mínimo</p>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-amber-50 p-4">
             <p className="text-sm font-medium text-amber-700">Alerta</p>
-            <p className="mt-2 text-3xl font-bold text-slate-900">{enriched.filter(i => getSemaforo(i) === 'AMARILLO').length}</p>
+            <p className="mt-2 text-3xl font-bold text-slate-900">{configurados.filter(i => getSemaforo(i) === 'AMARILLO').length}</p>
             <p className="text-sm text-slate-500">≤ Stock alerta</p>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-emerald-50 p-4">
             <p className="text-sm font-medium text-emerald-700">OK</p>
-            <p className="mt-2 text-3xl font-bold text-slate-900">{enriched.filter(i => getSemaforo(i) === 'VERDE').length}</p>
+            <p className="mt-2 text-3xl font-bold text-slate-900">{configurados.filter(i => getSemaforo(i) === 'VERDE').length}</p>
             <p className="text-sm text-slate-500">Stock suficiente</p>
           </div>
         </div>
