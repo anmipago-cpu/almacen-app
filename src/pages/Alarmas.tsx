@@ -38,7 +38,20 @@ export function Alarmas() {
 
   const leadTimeMap = useMemo(() => {
     const map = new Map<string, number | null>();
-    productos.forEach(p => map.set(p.code, p.lead_time_semanas ?? null));
+    productos
+      .filter(p => p.active !== false)
+      .forEach(p => map.set(p.code, p.lead_time_semanas ?? null));
+    return map;
+  }, [productos]);
+
+  const consumoMap = useMemo(() => {
+    const map = new Map<string, number>();
+    productos
+      .filter(p => p.active !== false)
+      .forEach(p => {
+        if (p.consumo_promedio_semanal && p.consumo_promedio_semanal > 0)
+          map.set(p.code, p.consumo_promedio_semanal);
+      });
     return map;
   }, [productos]);
 
@@ -46,8 +59,11 @@ export function Alarmas() {
     return inventario.map(item => ({
       ...item,
       lead_time_semanas: leadTimeMap.get(item.code) ?? item.lead_time_semanas,
+      // Usa consumo manual del catálogo (coherente con stock_min/stock_bajo)
+      // Si no hay manual, usa el promedio calculado del historial real
+      promedio_consumo_semanal: consumoMap.get(item.code) ?? item.promedio_consumo_semanal,
     }));
-  }, [inventario, leadTimeMap]);
+  }, [inventario, leadTimeMap, consumoMap]);
 
   const configurados = useMemo(() => enriched.filter(item => {
     const lt = item.lead_time_semanas;
