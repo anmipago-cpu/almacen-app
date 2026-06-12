@@ -55,7 +55,9 @@ export function Alarmas() {
         const lt = item.lead_time_semanas;
         const tieneLeadTime = lt && lt > 0 && item.promedio_consumo_semanal > 0;
         const tieneUmbrales = item.stock_min > 0 || item.stock_bajo > 0;
-        return tieneLeadTime || tieneUmbrales;
+        if (!tieneLeadTime && !tieneUmbrales) return false;
+        const estado = getSemaforo(item);
+        return estado === 'ROJO' || estado === 'AMARILLO' || estado === 'AGOTADO';
       })
       .sort((a, b) => {
         const score = (item: InventarioItem) => {
