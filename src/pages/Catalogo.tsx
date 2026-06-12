@@ -173,6 +173,15 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
         const provider = proveedores.find(p => p.name === value || p.code === value);
         updated.supplier_code = provider?.code || '';
       }
+      // Auto-calcular stock_min y stock_bajo al cambiar lead_time o consumo
+      if (field === 'lead_time_semanas' || field === 'consumo_promedio_semanal') {
+        const lt = Number(field === 'lead_time_semanas' ? value : updated.lead_time_semanas);
+        const consumo = Number(field === 'consumo_promedio_semanal' ? value : updated.consumo_promedio_semanal);
+        if (lt > 0 && consumo > 0) {
+          updated.stock_min = String(Math.round(lt * consumo));
+          updated.stock_bajo = String(Math.round((lt + 1) * consumo));
+        }
+      }
       return updated;
     });
   }
@@ -812,7 +821,12 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                         <input
                           type="number"
                           value={cambios.lead_time_semanas ?? product.lead_time_semanas ?? ''}
-                          onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], lead_time_semanas: e.target.value === '' ? undefined : Number(e.target.value) } }))}
+                          onChange={e => {
+                            const lt = e.target.value === '' ? undefined : Number(e.target.value);
+                            const consumo = cambios.consumo_promedio_semanal ?? product.consumo_promedio_semanal;
+                            const extra: Partial<Producto> = lt && consumo ? { stock_min: Math.round(lt * consumo), stock_bajo: Math.round((lt + 1) * consumo) } : {};
+                            setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], lead_time_semanas: lt, ...extra } }));
+                          }}
                           className="w-16 rounded border border-slate-200 px-1 py-0.5 text-xs"
                           placeholder="—"
                         />
@@ -825,7 +839,12 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                         <input
                           type="number"
                           value={cambios.consumo_promedio_semanal ?? product.consumo_promedio_semanal ?? ''}
-                          onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], consumo_promedio_semanal: e.target.value === '' ? undefined : Number(e.target.value) } }))}
+                          onChange={e => {
+                            const consumo = e.target.value === '' ? undefined : Number(e.target.value);
+                            const lt = cambios.lead_time_semanas ?? product.lead_time_semanas;
+                            const extra: Partial<Producto> = lt && consumo ? { stock_min: Math.round(lt * consumo), stock_bajo: Math.round((lt + 1) * consumo) } : {};
+                            setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], consumo_promedio_semanal: consumo, ...extra } }));
+                          }}
                           className="w-20 rounded border border-slate-200 px-1 py-0.5 text-xs"
                           placeholder="—"
                         />
