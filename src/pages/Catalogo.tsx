@@ -772,6 +772,7 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                           className="w-full rounded border border-slate-200 px-1 py-0.5 text-xs"
                         >
                           <option value="">—</option>
+                          {(() => { const v = cambios.unit ?? product.unit; return v && !unidadesConteo.includes(v) ? <option key={v} value={v}>{v}</option> : null; })()}
                           {unidadesConteo.map(u => <option key={u} value={u}>{u}</option>)}
                         </select>
                       ) : (
@@ -786,6 +787,7 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                           className="w-full rounded border border-slate-200 px-1 py-0.5 text-xs"
                         >
                           <option value="">—</option>
+                          {(() => { const v = cambios.unit_base ?? product.unit_base; return v && !unidadesBase.includes(v) ? <option key={v} value={v}>{v}</option> : null; })()}
                           {unidadesBase.map(u => <option key={u} value={u}>{u}</option>)}
                         </select>
                       ) : (

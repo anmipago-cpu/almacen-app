@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 const DEFAULT_CONTEO = ['CAJA', 'BULTO', 'CARTON', 'PALLET', 'UNIDAD', 'ROLLO', 'SET', 'DRUM', 'SACK'];
-const DEFAULT_BASE = ['BOLSA', 'TAZA', 'TAPA', 'TAZA/TAPA', 'UNIDAD', 'ROLLO', 'SET'];
+const DEFAULT_BASE = ['BOLSA', 'TAZA', 'TAPA', 'TAZA/TAPA', 'UNIDAD', 'ROLLO', 'SET', 'SACK', 'DRUM', 'PALLET'];
 
 export function useUnidades() {
   const [unidadesConteo, setUnidadesConteo] = useState<string[]>(DEFAULT_CONTEO);
