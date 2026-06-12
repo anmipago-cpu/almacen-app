@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Initial check — runs once on mount
+    // Initial check — sets ready=true only after profile is loaded
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
@@ -53,13 +53,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Subsequent auth changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      if (session?.user) {
-        const p = await fetchProfile(session.user.id);
-        setProfile(p);
-      } else {
+      if (!session) {
+        setSession(null);
         setProfile(null);
+        return;
       }
+      // Load profile before updating session so there's no gap where
+      // session exists but profile is null
+      const p = await fetchProfile(session.user.id);
+      setSession(session);
+      setProfile(p);
     });
 
     return () => subscription.unsubscribe();
