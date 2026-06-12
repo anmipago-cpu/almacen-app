@@ -50,17 +50,24 @@ export function Alarmas() {
   }, [inventario, leadTimeMap]);
 
   const datos = useMemo(() => {
-    return [...enriched].sort((a, b) => {
-      const score = (item: InventarioItem) => {
-        if (item.stock_actual <= 0) return -1;
+    return enriched
+      .filter(item => {
         const lt = item.lead_time_semanas;
-        if (lt && lt > 0 && item.promedio_consumo_semanal > 0) {
-          return item.stock_actual / item.promedio_consumo_semanal;
-        }
-        return 999;
-      };
-      return score(a) - score(b);
-    });
+        const tieneLeadTime = lt && lt > 0 && item.promedio_consumo_semanal > 0;
+        const tieneUmbrales = item.stock_min > 0 || item.stock_bajo > 0;
+        return tieneLeadTime || tieneUmbrales;
+      })
+      .sort((a, b) => {
+        const score = (item: InventarioItem) => {
+          if (item.stock_actual <= 0) return -1;
+          const lt = item.lead_time_semanas;
+          if (lt && lt > 0 && item.promedio_consumo_semanal > 0) {
+            return item.stock_actual / item.promedio_consumo_semanal;
+          }
+          return 999;
+        };
+        return score(a) - score(b);
+      });
   }, [enriched]);
 
   function handleExport() {
@@ -123,7 +130,7 @@ export function Alarmas() {
           <div>
             <h2 className="text-base font-semibold text-slate-900">Listado de alarmas</h2>
             <p className="text-sm text-slate-500">
-              Semáforo por semanas si tiene lead time; si no, por stock mín./bajo.
+              Solo productos con lead time o umbrales configurados. Ordenado por urgencia.
             </p>
           </div>
           <Button variant="outline" onClick={handleExport} icon={<Download size={16} />}>Exportar Excel</Button>
