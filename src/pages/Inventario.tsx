@@ -4,8 +4,10 @@ import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { BadgeCategoria, BadgeEstado } from '../components/ui/Badge';
+import { SearchInput } from '../components/ui/SearchInput';
 import { useInventario } from '../hooks/useInventario';
 import { useProductos } from '../hooks/useProductos';
+import { useSearchHistory } from '../hooks/useSearchHistory';
 import { getEstado, CATEGORIAS, SUBCATEGORIAS } from '../types';
 import { formatNumero, formatFecha, exportarExcel } from '../lib/utils';
 import { supabase } from '../lib/supabase';
@@ -27,6 +29,7 @@ interface LoteItem {
 export function Inventario() {
   const { inventario, loading, error, recargar } = useInventario();
   const { productos } = useProductos();
+  const { history: searchHistory, addSearch, clearHistory } = useSearchHistory('inventario');
   const [tab, setTab] = useState<'general' | 'lote'>('general');
   const [busqueda, setBusqueda] = useState('');
   const [categoriasFiltro, setCategoriasFiltro] = useState<string[]>([]);
@@ -136,7 +139,8 @@ export function Inventario() {
       const matchText = !busqueda ||
         item.name.toLowerCase().includes(q) ||
         item.code.toLowerCase().includes(q) ||
-        (item.supplier ?? '').toLowerCase().includes(q);
+        (item.supplier ?? '').toLowerCase().includes(q) ||
+        (item.presentation ?? '').toLowerCase().includes(q);
       const matchCat = categoriasFiltro.length === 0 || categoriasFiltro.includes(item.category);
       const matchSub = subcategoriasFiltro.length === 0 ||
         subcategoriasFiltro.includes(`${item.category}:${item.subcategory}`);
@@ -241,12 +245,16 @@ export function Inventario() {
 
           <Card className="!p-0 overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
-              <input
-                value={busqueda}
-                onChange={e => setBusqueda(e.target.value)}
-                placeholder="Buscar por código, nombre o proveedor..."
-                className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm min-w-[240px] flex-1"
-              />
+              <div className="min-w-[240px] flex-1">
+                <SearchInput
+                  value={busqueda}
+                  onChange={setBusqueda}
+                  onSearch={addSearch}
+                  history={searchHistory}
+                  onClearHistory={clearHistory}
+                  placeholder="Buscar por código, nombre, proveedor o descripción..."
+                />
+              </div>
               <MultiSelectCategorias value={categoriasFiltro} onChange={v => { setCategoriasFiltro(v); setSubcategoriasFiltro([]); }} />
               {subcategoriasDisponibles.length > 0 && (
                 <MultiSelectSubcategorias opciones={subcategoriasDisponibles} value={subcategoriasFiltro} onChange={setSubcategoriasFiltro} />

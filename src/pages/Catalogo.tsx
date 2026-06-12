@@ -6,9 +6,11 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select, Textarea } from '../components/ui/Input';
 import { BadgeCategoria } from '../components/ui/Badge';
+import { SearchInput } from '../components/ui/SearchInput';
 import { useProductos } from '../hooks/useProductos';
 import { useProveedores } from '../hooks/useProveedores';
 import { useUnidades } from '../hooks/useUnidades';
+import { useSearchHistory } from '../hooks/useSearchHistory';
 import { supabase } from '../lib/supabase';
 import { exportarExcel } from '../lib/utils';
 import { CATEGORIAS, SUBCATEGORIAS, type Producto } from '../types';
@@ -75,6 +77,7 @@ export function Catalogo() {
   const [bulkName, setBulkName] = useState('');
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
+  const { history: searchHistory, addSearch, clearHistory } = useSearchHistory('catalogo');
   const [filter, setFilter] = useState('');
   const [categoriasFiltro, setCategoriasFiltro] = useState<string[]>([]);
   const [subcategoriasFiltro, setSubcategoriasFiltro] = useState<string[]>([]);
@@ -124,7 +127,7 @@ export function Catalogo() {
   const filtered = useMemo(() => {
     return productos.filter(p => {
       const query = filter.toLowerCase();
-      const matchText = !filter || p.name.toLowerCase().includes(query) || p.code.toLowerCase().includes(query) || p.supplier?.toLowerCase().includes(query);
+      const matchText = !filter || p.name.toLowerCase().includes(query) || p.code.toLowerCase().includes(query) || p.supplier?.toLowerCase().includes(query) || p.description?.toLowerCase().includes(query) || p.presentation?.toLowerCase().includes(query);
       const matchCat = categoriasFiltro.length === 0 || categoriasFiltro.includes(p.category);
       const matchSub = subcategoriasFiltro.length === 0 || subcategoriasFiltro.includes(p.subcategory ?? '');
       const matchActivo = !activoFiltro || (activoFiltro === 'activos' ? p.active !== false : p.active === false);
@@ -567,11 +570,14 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
             <p className="text-sm text-slate-500">Filtra y edita los datos esenciales del catálogo.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <input
+            <SearchInput
               value={filter}
-              onChange={e => setFilter(e.target.value)}
-              placeholder="Buscar..."
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+              onChange={setFilter}
+              onSearch={addSearch}
+              history={searchHistory}
+              onClearHistory={clearHistory}
+              placeholder="Buscar por código, nombre, descripción..."
+              className="bg-slate-50"
             />
             <MultiSelectCategorias value={categoriasFiltro} onChange={v => { setCategoriasFiltro(v); setSubcategoriasFiltro([]); }} />
             <MultiSelectSubcategorias opciones={subcategoriasDisponibles} value={subcategoriasFiltro} onChange={setSubcategoriasFiltro} />

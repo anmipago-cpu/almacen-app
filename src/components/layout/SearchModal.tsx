@@ -1,13 +1,16 @@
 import { useMemo } from 'react';
-import { Search, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useProductos } from '../../hooks/useProductos';
 import { useSearchContext } from '../../context/SearchContext';
+import { useSearchHistory } from '../../hooks/useSearchHistory';
+import { SearchInput } from '../ui/SearchInput';
 import { BadgeCategoria } from '../ui/Badge';
 import { cn } from '../../lib/utils';
 
 export function SearchModal() {
   const { productos, loading } = useProductos();
   const { searchOpen, setSearchOpen, searchQuery, setSearchQuery, setSelectedProduct } = useSearchContext();
+  const { history, addSearch, clearHistory } = useSearchHistory('global');
 
   const filtered = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -15,7 +18,9 @@ export function SearchModal() {
     return productos.filter(product =>
       product.name.toLowerCase().includes(query) ||
       product.code.toLowerCase().includes(query) ||
-      product.supplier?.toLowerCase().includes(query)
+      product.supplier?.toLowerCase().includes(query) ||
+      product.description?.toLowerCase().includes(query) ||
+      product.presentation?.toLowerCase().includes(query)
     );
   }, [productos, searchQuery]);
 
@@ -27,7 +32,7 @@ export function SearchModal() {
         <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4">
           <div>
             <h2 className="text-xl font-semibold text-slate-900">Buscador universal</h2>
-            <p className="text-sm text-slate-500">Busca por código, nombre o proveedor y selecciona el producto para autocompletar el formulario activo.</p>
+            <p className="text-sm text-slate-500">Busca por código, nombre, proveedor, descripción o presentación.</p>
           </div>
           <button onClick={() => setSearchOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200 text-slate-700 hover:bg-slate-300">
             <X size={18} />
@@ -35,17 +40,15 @@ export function SearchModal() {
         </div>
 
         <div className="p-5">
-          <label className="block text-sm font-medium text-slate-700">Buscar producto</label>
-          <div className="mt-2 relative">
-            <Search size={16} className="pointer-events-none absolute left-3 top-3 text-slate-400" />
-            <input
-              autoFocus
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Código, nombre o proveedor..."
-              className="w-full rounded-2xl border border-slate-300 bg-white px-10 py-3 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            />
-          </div>
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            onSearch={addSearch}
+            history={history}
+            onClearHistory={clearHistory}
+            placeholder="Código, nombre, proveedor, descripción..."
+            autoFocus
+          />
         </div>
 
         <div className="max-h-[60vh] overflow-y-auto border-t border-slate-200">
@@ -60,6 +63,7 @@ export function SearchModal() {
                   key={product.code}
                   type="button"
                   onClick={() => {
+                    if (searchQuery.trim()) addSearch(searchQuery.trim());
                     setSelectedProduct(product);
                     setSearchOpen(false);
                   }}
@@ -76,7 +80,9 @@ export function SearchModal() {
                     <div className="mt-2 grid gap-2 sm:grid-cols-2 text-sm text-slate-500">
                       <span>{product.supplier || 'Proveedor no definido'}</span>
                       <span>{product.presentation || 'Presentación no definida'}</span>
-                      <span>{product.unit || 'Unidad no definida'}</span>
+                      {product.description && (
+                        <span className="sm:col-span-2 text-xs text-slate-400 truncate">{product.description}</span>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 text-right">
