@@ -108,8 +108,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const results: Record<string, string> = {};
 
   // ── WhatsApp via CallMeBot (soporta múltiples números) ────────────────
-  const waPhones  = (process.env.CALLMEBOT_PHONE  ?? '').split(',').map(s => s.trim()).filter(Boolean);
-  const waApiKeys = (process.env.CALLMEBOT_APIKEY ?? '').split(',').map(s => s.trim()).filter(Boolean);
+  const waPhones  = (process.env.CALLMEBOT_PHONE  ?? '').split(/[,\n\r]+/).map(s => s.trim()).filter(Boolean);
+  const waApiKeys = (process.env.CALLMEBOT_APIKEY ?? '').split(/[,\n\r]+/).map(s => s.trim()).filter(Boolean);
   if (waPhones.length && waApiKeys.length) {
     const text = encodeURIComponent(buildWhatsApp(productos, hoy));
     const waResults: string[] = [];
@@ -133,7 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── Email via Resend (soporta múltiples destinatarios) ─────────────────
   const resendKey = process.env.RESEND_API_KEY;
-  const emailTos  = (process.env.ALERT_EMAIL_TO ?? '').split(',').map(s => s.trim()).filter(Boolean);
+  const emailTos  = (process.env.ALERT_EMAIL_TO ?? '').split(/[,\n\r]+/).map(s => s.trim()).filter(Boolean);
   const emailFrom = process.env.ALERT_EMAIL_FROM ?? 'onboarding@resend.dev';
   if (resendKey && emailTos.length) {
     const resend = new Resend(resendKey);
