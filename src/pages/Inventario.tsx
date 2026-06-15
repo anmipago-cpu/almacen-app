@@ -24,6 +24,7 @@ interface LoteItem {
   ultima_fecha: string;
   fecha_vencimiento: string;
   category: string;
+  subcategory: string;
 }
 
 export function Inventario() {
@@ -40,6 +41,8 @@ export function Inventario() {
   const [lotesData, setLotesData] = useState<LoteItem[]>([]);
   const [loadingLotes, setLoadingLotes] = useState(false);
   const [busquedaLote, setBusquedaLote] = useState('');
+  const [categoriasFiltroLote, setCategoriasFiltroLote] = useState<string[]>([]);
+  const [subcategoriasFiltroLote, setSubcategoriasFiltroLote] = useState<string[]>([]);
 
   const cargarLotes = useCallback(async () => {
     setLoadingLotes(true);
@@ -81,6 +84,7 @@ export function Inventario() {
             ultima_fecha: rec.fecha,
             fecha_vencimiento: (esEntrada ? rec.fecha_vencimiento : '') || '',
             category: prod?.category || '',
+            subcategory: prod?.subcategory || '',
           });
         }
       });
@@ -94,16 +98,34 @@ export function Inventario() {
     if (tab === 'lote' && lotesData.length === 0) cargarLotes();
   }, [tab, lotesData.length, cargarLotes]);
 
+  const subcategoriasDisponiblesLote = useMemo(() => {
+    const cats = categoriasFiltroLote.length > 0 ? categoriasFiltroLote : Object.keys(CATEGORIAS);
+    const result: { key: string; label: string }[] = [];
+    const seen = new Set<string>();
+    cats.forEach(cat => {
+      const subs = SUBCATEGORIAS[cat] || {};
+      Object.entries(subs).forEach(([key, label]) => {
+        const id = `${cat}:${key}`;
+        if (!seen.has(id)) { seen.add(id); result.push({ key: id, label }); }
+      });
+    });
+    return result;
+  }, [categoriasFiltroLote]);
+
   const lotesFiltrados = useMemo(() => {
     const q = busquedaLote.toLowerCase();
-    return lotesData.filter(item =>
-      !busquedaLote ||
-      item.producto_code.toLowerCase().includes(q) ||
-      item.producto_name.toLowerCase().includes(q) ||
-      item.lote.toLowerCase().includes(q) ||
-      item.proveedor.toLowerCase().includes(q)
-    );
-  }, [lotesData, busquedaLote]);
+    return lotesData.filter(item => {
+      const matchText = !busquedaLote ||
+        item.producto_code.toLowerCase().includes(q) ||
+        item.producto_name.toLowerCase().includes(q) ||
+        item.lote.toLowerCase().includes(q) ||
+        item.proveedor.toLowerCase().includes(q);
+      const matchCat = categoriasFiltroLote.length === 0 || categoriasFiltroLote.includes(item.category);
+      const matchSub = subcategoriasFiltroLote.length === 0 ||
+        subcategoriasFiltroLote.includes(`${item.category}:${item.subcategory}`);
+      return matchText && matchCat && matchSub;
+    });
+  }, [lotesData, busquedaLote, categoriasFiltroLote, subcategoriasFiltroLote]);
 
   // --- General ---
   const items = useMemo(() => {
@@ -336,11 +358,15 @@ export function Inventario() {
                 value={busquedaLote}
                 onChange={e => setBusquedaLote(e.target.value)}
                 placeholder="Buscar por código, nombre, lote o proveedor..."
-                className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm min-w-[280px] flex-1"
+                className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm min-w-[240px] flex-1"
               />
-              {busquedaLote && (
-                <button onClick={() => setBusquedaLote('')} className="text-xs text-slate-500 hover:text-slate-800 underline">
-                  Limpiar
+              <MultiSelectCategorias value={categoriasFiltroLote} onChange={v => { setCategoriasFiltroLote(v); setSubcategoriasFiltroLote([]); }} />
+              {subcategoriasDisponiblesLote.length > 0 && (
+                <MultiSelectSubcategorias opciones={subcategoriasDisponiblesLote} value={subcategoriasFiltroLote} onChange={setSubcategoriasFiltroLote} />
+              )}
+              {(busquedaLote || categoriasFiltroLote.length > 0 || subcategoriasFiltroLote.length > 0) && (
+                <button onClick={() => { setBusquedaLote(''); setCategoriasFiltroLote([]); setSubcategoriasFiltroLote([]); }} className="text-xs text-slate-500 hover:text-slate-800 underline">
+                  Limpiar filtros
                 </button>
               )}
             </div>
