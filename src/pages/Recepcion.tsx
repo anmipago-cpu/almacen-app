@@ -612,7 +612,7 @@ export function Recepcion() {
                           <td className="px-3 py-1.5 text-slate-900">{item.producto_name}</td>
                           <td className="px-3 py-1.5 text-right font-mono">{item.cantidad_unidad_natural}</td>
                           <td className="px-3 py-1.5 text-slate-500">{item.unidad_natural}</td>
-                          <td className="px-3 py-1.5 text-right font-mono font-semibold">{formatNumero(item.total_unidades_base, 0)}</td>
+                          <td className="px-3 py-1.5 text-right font-mono font-semibold">{formatNumero(item.total_unidades_base)}</td>
                           <td className="px-3 py-1.5 text-slate-500">{item.lote || (prod?.requires_lot ? '⚠' : '—')}</td>
                         </tr>
                       );
@@ -839,7 +839,7 @@ export function Recepcion() {
                         <td className="px-3 py-2 text-slate-500 whitespace-nowrap text-xs">{rec.po || '—'}</td>
                         <td className="px-3 py-2 text-slate-500 max-w-[120px] truncate" title={rec.proveedor || ''}>{rec.proveedor || '—'}</td>
                         <td className="px-3 py-2 text-right whitespace-nowrap">
-                          <span className="font-mono font-bold text-slate-800">{formatNumero(rec.cantidad_unidad_natural, 0)}</span>
+                          <span className="font-mono font-bold text-slate-800">{formatNumero(rec.cantidad_unidad_natural)}</span>
                           {unitConteo && <span className="ml-1 text-slate-400 font-normal">{unitConteo}</span>}
                         </td>
                         <td className="px-3 py-2 text-right whitespace-nowrap">
@@ -875,10 +875,10 @@ export function Recepcion() {
                       Total · {historialFiltrado.length} recepciones
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-900">
-                      {formatNumero(historialFiltrado.reduce((s, r) => s + (r.cantidad_unidad_natural || 0), 0), 0)}
+                      {formatNumero(historialFiltrado.reduce((s, r) => s + (r.cantidad_unidad_natural || 0), 0))}
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono font-bold text-emerald-700">
-                      {formatNumero(historialFiltrado.reduce((s, r) => s + (r.total_unidades_base || 0), 0), 0)}
+                      {formatNumero(historialFiltrado.reduce((s, r) => s + (r.total_unidades_base || 0), 0))}
                     </td>
                     <td />
                   </tr>
