@@ -93,6 +93,70 @@ function buildEmailHtml(productos: AlertProduct[], hoy: string): string {
 </html>`;
 }
 
+const ESTADO_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+  AGOTADO: { label: 'SIN STOCK',  color: '#ffffff', bg: '#0f172a' },
+  ROJO:    { label: 'CRÍTICO',    color: '#ffffff', bg: '#dc2626' },
+  AMARILLO:{ label: 'ALERTA',     color: '#92400e', bg: '#fef3c7' },
+  VERDE:   { label: 'OK',         color: '#166534', bg: '#dcfce7' },
+};
+
+function buildGestionEmailHtml(p: AlertProduct, hoy: string): string {
+  const est = ESTADO_LABELS[p.estado] ?? ESTADO_LABELS.AMARILLO;
+  return `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:white;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0">
+    <div style="background:#0f172a;padding:24px 28px">
+      <h1 style="color:white;margin:0;font-size:20px;font-weight:700">📋 Producto informado al área de compras</h1>
+      <p style="color:#94a3b8;margin:6px 0 0;font-size:13px">${hoy}</p>
+    </div>
+    <div style="padding:28px">
+      <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+        <tr style="background:#f8fafc">
+          <td style="padding:10px 16px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;width:40%">Código</td>
+          <td style="padding:10px 16px;font-family:monospace;font-size:14px;color:#0f172a;font-weight:700">${p.code}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 16px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;border-top:1px solid #f1f5f9">Producto</td>
+          <td style="padding:10px 16px;font-size:14px;color:#0f172a;border-top:1px solid #f1f5f9">${p.name}</td>
+        </tr>
+        <tr style="background:#f8fafc">
+          <td style="padding:10px 16px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;border-top:1px solid #f1f5f9">Categoría</td>
+          <td style="padding:10px 16px;font-size:14px;color:#334155;border-top:1px solid #f1f5f9">${p.category}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 16px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;border-top:1px solid #f1f5f9">Estado alarma</td>
+          <td style="padding:10px 16px;border-top:1px solid #f1f5f9">
+            <span style="background:${est.bg};color:${est.color};padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700">${est.label}</span>
+          </td>
+        </tr>
+        <tr style="background:#f8fafc">
+          <td style="padding:10px 16px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;border-top:1px solid #f1f5f9">Stock actual</td>
+          <td style="padding:10px 16px;font-family:monospace;font-size:14px;font-weight:700;color:#0f172a;border-top:1px solid #f1f5f9">${p.stock_actual.toLocaleString('es-CO')}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 16px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;border-top:1px solid #f1f5f9">Stock mínimo</td>
+          <td style="padding:10px 16px;font-family:monospace;font-size:14px;color:#64748b;border-top:1px solid #f1f5f9">${p.stock_min}</td>
+        </tr>
+        <tr style="background:#f8fafc">
+          <td style="padding:10px 16px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;border-top:1px solid #f1f5f9">Semanas restantes</td>
+          <td style="padding:10px 16px;font-family:monospace;font-size:14px;color:#64748b;border-top:1px solid #f1f5f9">${p.semanas_restantes} sem</td>
+        </tr>
+        ${p.lead_time_semanas != null ? `<tr>
+          <td style="padding:10px 16px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;border-top:1px solid #f1f5f9">Lead time</td>
+          <td style="padding:10px 16px;font-family:monospace;font-size:14px;color:#64748b;border-top:1px solid #f1f5f9">${p.lead_time_semanas} sem</td>
+        </tr>` : ''}
+      </table>
+      <p style="margin:20px 0 0;font-size:13px;color:#64748b">Este correo fue generado al marcar el producto como <strong>informado</strong> en el módulo de Alarmas.</p>
+    </div>
+    <div style="background:#f8fafc;padding:16px 28px;border-top:1px solid #e2e8f0">
+      <p style="margin:0;font-size:12px;color:#94a3b8">Almacén App &mdash; ${hoy}</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -101,11 +165,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  const type: string = req.body?.type ?? 'alerta';
   const productos: AlertProduct[] = req.body?.productos ?? [];
   if (!productos.length) return res.status(400).json({ error: 'Sin productos en alerta' });
 
   const hoy = fecha();
   const results: Record<string, string> = {};
+
+  // ── Tipo "gestion": solo email al área de compras ──────────────────────
+  if (type === 'gestion') {
+    const resendKey = process.env.RESEND_API_KEY;
+    const emailTos  = (process.env.GESTION_EMAIL_TO ?? '').split(/[,\n\r]+/).map(s => s.trim()).filter(Boolean);
+    const emailFrom = process.env.ALERT_EMAIL_FROM ?? 'onboarding@resend.dev';
+    if (resendKey && emailTos.length) {
+      const resend = new Resend(resendKey);
+      const p = productos[0];
+      const est = ESTADO_LABELS[p.estado]?.label ?? p.estado;
+      const subject = `[COMPRAS ${hoy}] ${est} – ${p.code} ${p.name}`;
+      const emailResults: string[] = [];
+      for (const to of emailTos) {
+        try {
+          const { error } = await resend.emails.send({ from: emailFrom, to, subject, html: buildGestionEmailHtml(p, hoy) });
+          emailResults.push(`${to}: ${error ? `error ${error.message}` : 'ok'}`);
+        } catch (e) {
+          emailResults.push(`${to}: error ${(e as Error).message}`);
+        }
+      }
+      results.email = emailResults.join(' | ');
+    } else {
+      results.email = 'no configurado (faltan RESEND_API_KEY / GESTION_EMAIL_TO)';
+    }
+    return res.status(200).json({ ok: true, results });
+  }
 
   // ── WhatsApp via CallMeBot (soporta múltiples números) ────────────────
   const waPhones  = (process.env.CALLMEBOT_PHONE  ?? '').split(/[,\n\r]+/).map(s => s.trim()).filter(Boolean);

@@ -191,6 +191,17 @@ export function Alarmas() {
     setMarcando(item.code);
     try {
       await registrar(item.code, getSemaforo(item), item.stock_actual);
+      // Enviar correo al área de compras
+      const payload = [{
+        code: item.code, name: item.name, category: item.category,
+        stock_actual: item.stock_actual, stock_min: item.stock_min, stock_bajo: item.stock_bajo,
+        lead_time_semanas: item.lead_time_semanas, promedio_consumo_semanal: item.promedio_consumo_semanal,
+        semanas_restantes: getSemanasLabel(item), estado: getSemaforo(item),
+      }];
+      fetch('/api/notificaciones', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'gestion', productos: payload }),
+      }).catch(() => {});
       toast.success(`${item.name} marcado como informado.`);
     } catch {
       toast.error('Error al registrar. Verifica que la tabla alertas_gestion existe en Supabase.');
