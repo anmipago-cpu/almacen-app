@@ -307,7 +307,7 @@ export function Alarmas() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {['Código', 'Nombre', 'Categoría', 'Stock actual', 'Stock mín.', 'Stock alerta', 'Lead time', 'Promedio sem.', 'Sem. restantes', 'Estado', 'Gestión compras'].map(h => (
+                  {['Código', 'Nombre', 'Categoría', 'Stock actual', 'Stock mín.', 'Stock alerta', 'Lead time sem.', 'Promedio sem.', 'Sem. restantes', 'Estado', 'Gestión compras'].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
