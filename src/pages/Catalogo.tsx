@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { RefreshCw, PlusCircle, Database, Download } from 'lucide-react';
+import { RefreshCw, PlusCircle, Database, Download, TrendingUp } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -80,6 +80,7 @@ export function Catalogo() {
   const [importing, setImporting] = useState(false);
   const { history: searchHistory, addSearch, clearHistory } = useSearchHistory('catalogo');
   const [filter, setFilter] = useState('');
+  const [showConsumoPanel, setShowConsumoPanel] = useState(false);
   const [categoriasFiltro, setCategoriasFiltro] = useState<string[]>([]);
   const [subcategoriasFiltro, setSubcategoriasFiltro] = useState<string[]>([]);
   const [activoFiltro, setActivoFiltro] = useState<'activos' | 'inactivos' | ''>('activos');
@@ -464,7 +465,10 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
         subtitle="Administra el catálogo completo de productos con carga individual o masiva."
         actions={
           <div className="flex items-center gap-2">
-<Button variant="outline" icon={<Download size={16} />} onClick={handleExport} size="sm">
+            <Button variant="outline" icon={<TrendingUp size={16} />} onClick={() => setShowConsumoPanel(true)} size="sm">
+              Actualizar consumo
+            </Button>
+            <Button variant="outline" icon={<Download size={16} />} onClick={handleExport} size="sm">
               Exportar Excel
             </Button>
             <Button variant="outline" icon={<RefreshCw size={16} />} onClick={recargar}>
@@ -930,6 +934,251 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
           </table>
         </div>
       </Card>
+
+      {showConsumoPanel && (
+        <PanelActualizarConsumo
+          productos={productos}
+          onClose={() => setShowConsumoPanel(false)}
+          onActualizado={() => { recargar(); setShowConsumoPanel(false); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Panel: Actualizar consumo promedio desde historial ───────────────────────
+
+interface FilaConsumo {
+  code: string;
+  name: string;
+  consumo_actual: number | null;
+  lead_time: number | null;
+  promedio_calculado: number;
+  semanas_con_datos: number;
+  seleccionado: boolean;
+}
+
+function getISOWeek(fecha: string): string {
+  const d = new Date(fecha + 'T00:00:00');
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() + 4 - day);
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function PanelActualizarConsumo({ productos, onClose, onActualizado }: {
+  productos: Producto[];
+  onClose: () => void;
+  onActualizado: () => void;
+}) {
+  const [semanas, setSemanas] = useState<4 | 8 | 12 | 0>(8);
+  const [filas, setFilas] = useState<FilaConsumo[]>([]);
+  const [cargando, setCargando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [soloConDiferencia, setSoloConDiferencia] = useState(true);
+
+  useEffect(() => { cargar(); }, [semanas]);
+
+  async function cargar() {
+    setCargando(true);
+    try {
+      let query = supabase
+        .from('recepciones')
+        .select('producto_code, total_unidades_base, fecha')
+        .eq('tipo', 'CONSUMO')
+        .gt('total_unidades_base', 0)
+        .order('fecha', { ascending: false });
+
+      if (semanas > 0) {
+        const desde = new Date();
+        desde.setDate(desde.getDate() - semanas * 7);
+        query = query.gte('fecha', desde.toISOString().slice(0, 10));
+      }
+
+      const { data } = await query;
+      if (!data) return;
+
+      // Agrupar por producto → semana → sumar consumo
+      const weekMap: Record<string, Record<string, number>> = {};
+      data.forEach(rec => {
+        const wk = getISOWeek(rec.fecha);
+        if (!weekMap[rec.producto_code]) weekMap[rec.producto_code] = {};
+        weekMap[rec.producto_code][wk] = (weekMap[rec.producto_code][wk] || 0) + Number(rec.total_unidades_base);
+      });
+
+      const resultado: FilaConsumo[] = [];
+      Object.entries(weekMap).forEach(([code, weeks]) => {
+        const prod = productos.find(p => p.code === code);
+        if (!prod) return;
+        const semanasArr = Object.values(weeks);
+        const promedio = semanasArr.reduce((a, b) => a + b, 0) / semanasArr.length;
+        resultado.push({
+          code,
+          name: prod.name,
+          consumo_actual: prod.consumo_promedio_semanal ?? null,
+          lead_time: prod.lead_time_semanas ?? null,
+          promedio_calculado: parseFloat(promedio.toFixed(4)),
+          semanas_con_datos: semanasArr.length,
+          seleccionado: false,
+        });
+      });
+
+      resultado.sort((a, b) => {
+        const difA = Math.abs((a.consumo_actual ?? 0) - a.promedio_calculado);
+        const difB = Math.abs((b.consumo_actual ?? 0) - b.promedio_calculado);
+        return difB - difA;
+      });
+
+      setFilas(resultado);
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  function toggleFila(code: string) {
+    setFilas(prev => prev.map(f => f.code === code ? { ...f, seleccionado: !f.seleccionado } : f));
+  }
+
+  function toggleTodos(checked: boolean) {
+    setFilas(prev => prev.map(f => ({ ...f, seleccionado: filasMostradas.some(fm => fm.code === f.code) ? checked : f.seleccionado })));
+  }
+
+  const filasMostradas = soloConDiferencia
+    ? filas.filter(f => f.consumo_actual === null || Math.abs(f.consumo_actual - f.promedio_calculado) > 0.01)
+    : filas;
+
+  const seleccionadas = filas.filter(f => f.seleccionado);
+
+  async function aplicar() {
+    if (!seleccionadas.length) { toast.error('Selecciona al menos un producto'); return; }
+    setGuardando(true);
+    let ok = 0;
+    try {
+      for (const fila of seleccionadas) {
+        const consumo = fila.promedio_calculado;
+        const lt = fila.lead_time ?? 0;
+        const stock_min = lt > 0 && consumo > 0 ? parseFloat((lt * consumo).toFixed(4)) : undefined;
+        const stock_bajo = lt > 0 && consumo > 0 ? parseFloat(((lt + 1) * consumo).toFixed(4)) : undefined;
+        const payload: Record<string, number> = { consumo_promedio_semanal: consumo };
+        if (stock_min !== undefined) payload.stock_min = stock_min;
+        if (stock_bajo !== undefined) payload.stock_bajo = stock_bajo;
+        const { error } = await supabase.from('productos').update(payload).eq('code', fila.code);
+        if (!error) ok++;
+      }
+      toast.success(`${ok} producto(s) actualizados correctamente`);
+      onActualizado();
+    } catch {
+      toast.error('Error al actualizar productos');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Actualizar consumo promedio desde historial</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Revisa y aplica el promedio real calculado desde consumos y conteos físicos registrados.</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">✕</button>
+        </div>
+
+        {/* Filtros */}
+        <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b border-slate-100 bg-slate-50">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <span className="font-medium">Período:</span>
+            {([4, 8, 12, 0] as const).map(s => (
+              <button key={s} onClick={() => setSemanas(s)}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${semanas === s ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-400'}`}>
+                {s === 0 ? 'Todo' : `${s} sem.`}
+              </button>
+            ))}
+          </div>
+          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer ml-auto">
+            <input type="checkbox" checked={soloConDiferencia} onChange={e => setSoloConDiferencia(e.target.checked)} className="h-4 w-4 rounded" />
+            Solo con diferencia
+          </label>
+        </div>
+
+        {/* Tabla */}
+        <div className="flex-1 overflow-auto px-6 py-3">
+          {cargando ? (
+            <div className="py-12 text-center text-slate-500 text-sm">Calculando promedios...</div>
+          ) : filasMostradas.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 text-sm">No hay consumos registrados en el período seleccionado.</div>
+          ) : (
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50 sticky top-0">
+                <tr>
+                  <th className="px-3 py-2 text-left">
+                    <input type="checkbox"
+                      checked={filasMostradas.every(f => f.seleccionado)}
+                      onChange={e => toggleTodos(e.target.checked)}
+                      className="h-4 w-4 rounded" />
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-500">Código</th>
+                  <th className="px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-500">Nombre</th>
+                  <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">Consumo actual</th>
+                  <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">Promedio calculado</th>
+                  <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">Diferencia</th>
+                  <th className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-slate-500">Semanas</th>
+                  <th className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-slate-500">Recalcula stock</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filasMostradas.map(fila => {
+                  const dif = fila.promedio_calculado - (fila.consumo_actual ?? 0);
+                  const pct = fila.consumo_actual ? Math.round((dif / fila.consumo_actual) * 100) : null;
+                  const recalcula = fila.lead_time != null && fila.lead_time > 0;
+                  return (
+                    <tr key={fila.code} className={`hover:bg-blue-50/30 transition-colors ${fila.seleccionado ? 'bg-blue-50' : ''}`}>
+                      <td className="px-3 py-2">
+                        <input type="checkbox" checked={fila.seleccionado} onChange={() => toggleFila(fila.code)} className="h-4 w-4 rounded" />
+                      </td>
+                      <td className="px-3 py-2 font-mono font-semibold text-slate-700">{fila.code}</td>
+                      <td className="px-3 py-2 text-slate-800 max-w-[200px] truncate" title={fila.name}>{fila.name}</td>
+                      <td className="px-3 py-2 text-right font-mono text-slate-600">
+                        {fila.consumo_actual != null ? fila.consumo_actual.toLocaleString('es-CO') : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono font-semibold text-blue-700">{fila.promedio_calculado.toLocaleString('es-CO')}</td>
+                      <td className="px-3 py-2 text-right">
+                        <span className={`font-mono font-semibold ${dif > 0 ? 'text-amber-600' : dif < 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                          {dif > 0 ? '+' : ''}{dif.toLocaleString('es-CO', { maximumFractionDigits: 2 })}
+                          {pct !== null && <span className="ml-1 text-slate-400 font-normal">({pct > 0 ? '+' : ''}{pct}%)</span>}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-center text-slate-500">{fila.semanas_con_datos}</td>
+                      <td className="px-3 py-2 text-center">
+                        {recalcula
+                          ? <span className="text-emerald-600 font-semibold">Sí (LT: {fila.lead_time} sem)</span>
+                          : <span className="text-slate-300">No</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-3xl">
+          <p className="text-xs text-slate-500">
+            {seleccionadas.length} seleccionado(s) de {filasMostradas.length} · Solo se modifica <strong>consumo_promedio_semanal</strong>{' '}
+            y se recalcula stock mín/alerta en productos con lead time configurado.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button onClick={aplicar} loading={guardando} disabled={!seleccionadas.length}>
+              Aplicar {seleccionadas.length > 0 ? `${seleccionadas.length} producto(s)` : ''}
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
