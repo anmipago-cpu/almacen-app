@@ -53,6 +53,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Subsequent auth changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      // Redirect to reset-password form when recovery link is clicked
+      if (_event === 'PASSWORD_RECOVERY') {
+        if (window.location.pathname !== '/reset-password') {
+          window.location.replace('/reset-password');
+        }
+        return;
+      }
       if (!session) {
         setSession(null);
         setProfile(null);

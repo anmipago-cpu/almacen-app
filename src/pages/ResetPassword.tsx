@@ -10,13 +10,15 @@ export function ResetPassword() {
   const [sessionOk, setSessionOk] = useState(false);
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setSessionOk(true);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) {
+        setSessionOk(true);
+      }
     });
-    // Check existing recovery session
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setSessionOk(true);
     });
+    return () => subscription.unsubscribe();
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {

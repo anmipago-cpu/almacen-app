@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { UserPlus, Pencil, Check, X, ShieldCheck, Eye, Wrench } from 'lucide-react';
+import { UserPlus, Pencil, Check, X, ShieldCheck, Eye, Wrench, KeyRound } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -41,6 +41,10 @@ export function Usuarios() {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editData, setEditData] = useState<{ nombre: string; rol: Rol }>({ nombre: '', rol: 'consulta' });
   const [guardando, setGuardando] = useState(false);
+
+  const [cambioPasswordId, setCambioPasswordId] = useState<string | null>(null);
+  const [nuevaPassword, setNuevaPassword] = useState('');
+  const [cambiando, setCambiando] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
@@ -94,6 +98,26 @@ export function Usuarios() {
     if (error) { toast.error(error.message); return; }
     setUsuarios(prev => prev.map(p => p.id === u.id ? { ...p, activo: !p.activo } : p));
     toast.success(u.activo ? 'Usuario desactivado' : 'Usuario reactivado');
+  }
+
+  async function cambiarPassword(userId: string) {
+    if (nuevaPassword.length < 6) { toast.error('La contraseña debe tener al menos 6 caracteres'); return; }
+    setCambiando(true);
+    try {
+      const res = await fetch('/api/admin-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, password: nuevaPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success('Contraseña actualizada correctamente');
+      setCambioPasswordId(null);
+      setNuevaPassword('');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al cambiar contraseña');
+    } finally {
+      setCambiando(false);
+    }
   }
 
   async function crearUsuario() {
@@ -229,6 +253,7 @@ export function Usuarios() {
               {usuarios.map(u => {
                 const isMe = u.id === currentProfile?.id;
                 const isEditing = editandoId === u.id;
+                const isChangingPassword = cambioPasswordId === u.id;
                 return (
                   <tr key={u.id} className={`transition-colors ${!u.activo ? 'opacity-50' : 'hover:bg-slate-50/60'}`}>
                     <td className="px-4 py-3 font-medium text-slate-900">
@@ -289,6 +314,32 @@ export function Usuarios() {
                               <X size={13} />
                             </button>
                           </>
+                        ) : isChangingPassword ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="password"
+                              value={nuevaPassword}
+                              onChange={e => setNuevaPassword(e.target.value)}
+                              placeholder="Nueva contraseña"
+                              autoFocus
+                              className="rounded-lg border border-blue-300 px-2 py-1 text-xs w-32 focus:outline-none"
+                            />
+                            <button
+                              onClick={() => cambiarPassword(u.id)}
+                              disabled={cambiando}
+                              title="Guardar contraseña"
+                              className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+                            >
+                              <Check size={13} />
+                            </button>
+                            <button
+                              onClick={() => { setCambioPasswordId(null); setNuevaPassword(''); }}
+                              title="Cancelar"
+                              className="p-1.5 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors"
+                            >
+                              <X size={13} />
+                            </button>
+                          </div>
                         ) : (
                           <>
                             <button
@@ -297,6 +348,13 @@ export function Usuarios() {
                               className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                             >
                               <Pencil size={13} />
+                            </button>
+                            <button
+                              onClick={() => { setCambioPasswordId(u.id); setNuevaPassword(''); setEditandoId(null); }}
+                              title="Cambiar contraseña"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                            >
+                              <KeyRound size={13} />
                             </button>
                             <button
                               onClick={() => toggleActivo(u)}
