@@ -1,0 +1,81 @@
+name: Backup Automático
+
+on:
+  schedule:
+    # Diario a medianoche hora Colombia (UTC-5 = 05:00 UTC)
+    - cron: '0 5 * * 1-6'
+    # Semanal completo los domingos a medianoche Colombia
+    - cron: '0 5 * * 0'
+  workflow_dispatch:
+    inputs:
+      tipo:
+        description: 'Tipo: diario | completo'
+        required: false
+        default: 'completo'
+
+jobs:
+  backup:
+    name: Backup Base de Datos
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: pip install requests google-auth google-auth-httplib2 google-api-python-client
+
+      - name: Exportar tablas de Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/backup_db.py
+
+      - name: Guardar en rama backups (GitHub)
+        run: |
+          DATE=$(TZ=America/Bogota date +%Y-%m-%d)
+          git config user.name  "Backup Bot"
+          git config user.email "backup@almacen-app.bot"
+
+          # Cambiar a rama backups (crearla si no existe)
+          git fetch origin backups:refs/remotes/origin/backups 2>/dev/null || true
+          git checkout backups 2>/dev/null || \
+            git checkout --orphan backups && git rm -rf . --quiet
+
+          # Copiar archivos del backup
+          mkdir -p $DATE
+          cp -r backup_output/$DATE/* $DATE/
+
+          # Eliminar backups con más de 30 días
+          find . -maxdepth 1 -type d -name "20*" | sort | head -n -30 | xargs -r git rm -rf
+
+          git add .
+          git commit -m "backup: $DATE" || echo "Sin cambios nuevos"
+          git push origin backups
+
+      - name: Crear archivo ZIP del código (semanal / manual)
+        if: >
+          github.event.schedule == '0 5 * * 0' ||
+          github.event.inputs.tipo == 'completo'
+        run: |
+          DATE=$(TZ=America/Bogota date +%Y-%m-%d)
+          git checkout main
+          git archive --format=zip --output="backup_output/$DATE/codigo_almacen_${DATE}.zip" HEAD
+          echo "Archivo de código creado: codigo_almacen_${DATE}.zip"
+
+      - name: Subir a Google Drive (semanal / manual)
+        if: >
+          (github.event.schedule == '0 5 * * 0' ||
+          github.event.inputs.tipo == 'completo') &&
+          secrets.GDRIVE_CREDENTIALS != ''
+        env:
+          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
+          GDRIVE_FOLDER_ID:   ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: python scripts/upload_gdrive.py
