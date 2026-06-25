@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, PackagePlus, PackageMinus, // nav icons
   Boxes, ClipboardList, ChevronLeft, ChevronRight,
-  Archive, AlertTriangle, Settings, BarChart2, Users, LogOut, Search, X
+  Archive, AlertTriangle, Settings, BarChart2, Users, LogOut, Search, X, Bell
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useState } from 'react';
@@ -22,7 +22,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/inventario',      icon: BarChart2,       label: 'Inventario',         roles: ['admin', 'operario', 'consulta'] },
   { to: '/inventario-fisico', icon: Boxes,         label: 'Inventario Físico',  roles: ['admin', 'operario'] },
   { to: '/consumo-semanal', icon: PackageMinus,    label: 'Consumo',            roles: ['admin', 'operario'] },
-  { to: '/alarmas',         icon: AlertTriangle,   label: 'Alarmas',            roles: ['admin', 'operario', 'consulta'] },
+  { to: '/alarmas',                 icon: AlertTriangle, label: 'Alarmas',                roles: ['admin', 'operario', 'consulta'] },
+  { to: '/solicitudes-informadas', icon: Bell,          label: 'Solicitudes Informadas', roles: ['admin', 'operario', 'consulta'] },
   { to: '/historial',       icon: ClipboardList,   label: 'Historial',          roles: ['admin', 'operario', 'consulta'] },
   { to: '/catalogo',        icon: Archive,         label: 'Catálogo',           roles: ['admin'] },
   { to: '/proveedores',     icon: PackagePlus,     label: 'Proveedores',        roles: ['admin'] },
