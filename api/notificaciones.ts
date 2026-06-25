@@ -232,8 +232,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const emailFrom = process.env.ALERT_EMAIL_FROM ?? 'onboarding@resend.dev';
   if (resendKey && emailTos.length) {
     const resend = new Resend(resendKey);
-    const codigos = productos.slice(0, 3).map(p => p.code).join(', ') + (productos.length > 3 ? '...' : '');
-    const subject = `[STOCK ${hoy}] ${productos.length} alerta(s) – ${codigos}`;
+    const codigos  = productos.slice(0, 3).map(p => p.code).join(', ') + (productos.length > 3 ? '...' : '');
+    const prefijo  = recordatorio ? '[RECORDATORIO STOCK]' : '[ALERTA STOCK]';
+    const subject  = `${prefijo} ${hoy} – ${productos.length} producto(s) – ${codigos}`;
     const emailResults: string[] = [];
     for (const to of emailTos) {
       try {
