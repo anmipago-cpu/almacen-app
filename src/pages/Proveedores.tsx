@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Download } from 'lucide-react';
+import { Download, Search } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -37,7 +37,21 @@ export function Proveedores() {
   const [bulkErrors, setBulkErrors] = useState<string[]>([]);
   const [bulkName, setBulkName] = useState('');
   const [importing, setImporting] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
   const nextCode = useMemo(() => getNextProveedorCode(proveedores), [proveedores]);
+
+  const filtrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return proveedores;
+    return proveedores.filter(p =>
+      p.code.toLowerCase().includes(q) ||
+      p.name.toLowerCase().includes(q) ||
+      (p.description || '').toLowerCase().includes(q) ||
+      (p.contact || '').toLowerCase().includes(q) ||
+      (p.email || '').toLowerCase().includes(q) ||
+      (p.phone || '').toLowerCase().includes(q)
+    );
+  }, [proveedores, busqueda]);
 
   function handleExport() {
     exportarExcel(proveedores.map(provider => ({
@@ -232,6 +246,18 @@ export function Proveedores() {
       </div>
 
       <Card className="!p-0 overflow-hidden">
+        <div className="p-4 border-b border-slate-100">
+          <div className="relative">
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              placeholder="Buscar por código, nombre, contacto, email..."
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 pl-9 pr-4 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+            />
+          </div>
+          <p className="text-xs text-slate-400 mt-2">{filtrados.length} de {proveedores.length} proveedores</p>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
@@ -242,9 +268,9 @@ export function Proveedores() {
               </tr>
             </thead>
             <tbody>
-              {proveedores.length === 0 ? (
-                <tr><td colSpan={7} className="p-6 text-center text-slate-500">No hay proveedores registrados.</td></tr>
-              ) : proveedores.map((proveedor, index) => {
+              {filtrados.length === 0 ? (
+                <tr><td colSpan={7} className="p-6 text-center text-slate-500">{proveedores.length === 0 ? 'No hay proveedores registrados.' : 'No hay proveedores que coincidan con la búsqueda.'}</td></tr>
+              ) : filtrados.map((proveedor, index) => {
                 const cambios = editando[proveedor.code] || {};
                 const isEditing = editingProveedorCode === proveedor.code;
                 return (
