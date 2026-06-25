@@ -129,34 +129,81 @@ export function Alarmas() {
     if (loading || notifChecked.current || configurados.length === 0) return;
     notifChecked.current = true;
 
-    const KEY = 'alarmas_last_states';
+    const KEY          = 'alarmas_last_states';
+    const ENTRY_KEY    = 'alarmas_entry_times';
+    const WEEKLY_KEY   = 'alarmas_weekly_sent';
+    const now          = Date.now();
+    const MS_4_DAYS    = 4 * 24 * 60 * 60 * 1000;
+    const MS_24H       = 24 * 60 * 60 * 1000;
+    const hoyDia       = new Date().getDay(); // 0=dom, 1=lun
+    const inicioSemana = (() => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - (hoyDia === 0 ? 6 : hoyDia - 1)); return d.toISOString().slice(0,10); })();
+
     let lastStates: Record<string, string> = {};
-    try { lastStates = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { /* noop */ }
+    let entryTimes: Record<string, { enteredAt: number; lastReminded: number | null }> = {};
+    try { lastStates  = JSON.parse(localStorage.getItem(KEY)       || '{}'); } catch { /* noop */ }
+    try { entryTimes  = JSON.parse(localStorage.getItem(ENTRY_KEY) || '{}'); } catch { /* noop */ }
 
     const currentStates: Record<string, string> = {};
-    const newAlerts: InventarioItem[] = [];
+    const newAlerts:     InventarioItem[] = [];
+    const reminders:     InventarioItem[] = [];
 
     configurados.forEach(item => {
       const estado = getSemaforo(item);
       currentStates[item.code] = estado;
-      if (estado === 'VERDE') return;
-      const prev = lastStates[item.code];
-      if (prev === undefined) return; // primera vez: registrar sin notificar
-      const prevSev = SEVERIDAD[prev] ?? 0;
-      const currSev = SEVERIDAD[estado] ?? 0;
-      if (currSev > prevSev) newAlerts.push(item);
+
+      // ── Cambios de estado (nueva alerta) ──
+      if (estado !== 'VERDE') {
+        const prev    = lastStates[item.code];
+        const prevSev = SEVERIDAD[prev ?? 'VERDE'] ?? 0;
+        const currSev = SEVERIDAD[estado] ?? 0;
+        if (prev !== undefined && currSev > prevSev) newAlerts.push(item);
+      }
+
+      // ── Recordatorio 4 días en ROJO o AGOTADO ──
+      const isCritical = estado === 'ROJO' || estado === 'AGOTADO';
+      if (!isCritical) {
+        delete entryTimes[item.code];
+        return;
+      }
+      if (!entryTimes[item.code]) {
+        entryTimes[item.code] = { enteredAt: now, lastReminded: null };
+        return;
+      }
+      const { enteredAt, lastReminded } = entryTimes[item.code];
+      const elapsed       = now - enteredAt;
+      const sinceReminded = lastReminded ? now - lastReminded : Infinity;
+      if (elapsed >= MS_4_DAYS && sinceReminded >= MS_24H) {
+        reminders.push(item);
+        entryTimes[item.code].lastReminded = now;
+      }
     });
 
-    localStorage.setItem(KEY, JSON.stringify(currentStates));
+    localStorage.setItem(KEY,       JSON.stringify(currentStates));
+    localStorage.setItem(ENTRY_KEY, JSON.stringify(entryTimes));
 
     if (newAlerts.length > 0) {
       toast.warning(`${newAlerts.length} nueva(s) alerta(s) detectada(s). Enviando notificaciones...`);
-      sendAlerts(newAlerts);
+      sendAlerts(newAlerts, false);
+    }
+    if (reminders.length > 0) {
+      toast.warning(`${reminders.length} producto(s) llevan 4+ días en estado crítico. Enviando recordatorio...`);
+      sendAlerts(reminders, true);
+    }
+
+    // ── Resumen semanal (lunes, una vez por semana) ──────────────────────
+    const lastWeeklySent = localStorage.getItem(WEEKLY_KEY) || '';
+    if (hoyDia === 1 && lastWeeklySent !== inicioSemana) {
+      const enAlerta = configurados.filter(i => getSemaforo(i) !== 'VERDE');
+      if (enAlerta.length > 0) {
+        localStorage.setItem(WEEKLY_KEY, inicioSemana);
+        toast.info(`Enviando resumen semanal de ${enAlerta.length} producto(s) en alerta...`);
+        sendAlerts(enAlerta, false);
+      }
     }
   }, [loading, configurados]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Envío de notificaciones ─────────────────────────────────────────────
-  async function sendAlerts(items: InventarioItem[]) {
+  async function sendAlerts(items: InventarioItem[], esRecordatorio = false) {
     const payload = items.map(item => ({
       code: item.code, name: item.name, category: item.category,
       stock_actual: item.stock_actual, stock_min: item.stock_min, stock_bajo: item.stock_bajo,
@@ -166,7 +213,7 @@ export function Alarmas() {
     try {
       const res = await fetch('/api/notificaciones', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productos: payload }),
+        body: JSON.stringify({ productos: payload, recordatorio: esRecordatorio }),
       });
       const data: { ok: boolean; results: Record<string, string>; error?: string } = await res.json();
       if (data.ok) {
@@ -184,7 +231,7 @@ export function Alarmas() {
     const enAlerta = datos.filter(i => getSemaforo(i) !== 'VERDE');
     if (!enAlerta.length) { toast.info('No hay productos en alerta para notificar.'); return; }
     setEnviando(true);
-    await sendAlerts(enAlerta);
+    await sendAlerts(enAlerta, false);
     setEnviando(false);
   }
 

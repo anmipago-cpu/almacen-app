@@ -18,12 +18,15 @@ function fecha() {
   return new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function buildWhatsApp(productos: AlertProduct[], hoy: string): string {
+function buildWhatsApp(productos: AlertProduct[], hoy: string, recordatorio = false): string {
   const agotados = productos.filter(p => p.estado === 'AGOTADO');
   const criticos  = productos.filter(p => p.estado === 'ROJO');
   const alertas   = productos.filter(p => p.estado === 'AMARILLO');
 
-  let msg = `🚨 *ALERTA DE STOCK – ${hoy}*\n${productos.length} producto(s) requieren atención.\n`;
+  const titulo = recordatorio
+    ? `⏰ *RECORDATORIO STOCK CRÍTICO – ${hoy}*\nEstos productos llevan 4+ días sin solución:`
+    : `🚨 *ALERTA DE STOCK – ${hoy}*\n${productos.length} producto(s) requieren atención.`;
+  let msg = titulo + '\n';
 
   if (agotados.length) {
     msg += `\n⚫ *SIN STOCK (${agotados.length}):*\n`;
@@ -165,7 +168,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const type: string = req.body?.type ?? 'alerta';
+  const type: string        = req.body?.type ?? 'alerta';
+  const recordatorio: boolean = req.body?.recordatorio ?? false;
   const productos: AlertProduct[] = req.body?.productos ?? [];
   if (!productos.length) return res.status(400).json({ error: 'Sin productos en alerta' });
 
@@ -202,7 +206,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const waPhones  = (process.env.CALLMEBOT_PHONE  ?? '').split(/[,\n\r]+/).map(s => s.trim()).filter(Boolean);
   const waApiKeys = (process.env.CALLMEBOT_APIKEY ?? '').split(/[,\n\r]+/).map(s => s.trim()).filter(Boolean);
   if (waPhones.length && waApiKeys.length) {
-    const text = encodeURIComponent(buildWhatsApp(productos, hoy));
+    const text = encodeURIComponent(buildWhatsApp(productos, hoy, recordatorio));
     const waResults: string[] = [];
     for (let i = 0; i < waPhones.length; i++) {
       const phone  = waPhones[i];
