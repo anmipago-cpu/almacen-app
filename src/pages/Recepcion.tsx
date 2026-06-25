@@ -726,6 +726,7 @@ export function Recepcion() {
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Proveedor</th>
                     <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Conteo</th>
                     <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Base</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Recibido por</th>
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500">Observaciones</th>
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Registrado por</th>
                     <th className="px-3 py-2.5 text-center font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap w-[80px]">Acciones</th>
@@ -851,6 +852,9 @@ export function Recepcion() {
                           <span className="font-mono font-semibold text-emerald-700">{formatNumero(rec.total_unidades_base, 0)}</span>
                           {unitBase && <span className="ml-1 text-slate-400 font-normal">{unitBase}</span>}
                         </td>
+                        <td className="px-3 py-2 text-slate-500 text-xs whitespace-nowrap">
+                          {rec.recibido_por || '—'}
+                        </td>
                         <td className="px-3 py-2 text-slate-400 text-xs max-w-[180px] truncate" title={rec.observaciones || ''}>
                           {rec.observaciones || '—'}
                         </td>
@@ -879,7 +883,7 @@ export function Recepcion() {
                 </tbody>
                 <tfoot className="bg-slate-50 border-t-2 border-slate-200">
                   <tr>
-                    <td colSpan={8} className="px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wide">
+                    <td colSpan={9} className="px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wide">
                       Total · {historialFiltrado.length} recepciones
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-900">
