@@ -66,7 +66,9 @@ export function Alarmas() {
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<Semaforo | ''>((searchParams.get('estado') as Semaforo) || '');
   const [enviando, setEnviando] = useState(false);
-  const [marcando, setMarcando] = useState<string | null>(null); // code del producto en proceso
+  const [marcando, setMarcando] = useState<string | null>(null);
+  const [modalItem, setModalItem] = useState<InventarioItem | null>(null);
+  const [notasModal, setNotasModal] = useState('');
   const notifChecked = useRef(false);
 
   // ── Enriquecer con catálogo ─────────────────────────────────────────────
@@ -151,12 +153,12 @@ export function Alarmas() {
       const estado = getSemaforo(item);
       currentStates[item.code] = estado;
 
-      // ── Cambios de estado (nueva alerta) ──
+      // ── Cambios de estado (nueva alerta o primer avistamiento) ──
       if (estado !== 'VERDE') {
         const prev    = lastStates[item.code];
         const prevSev = SEVERIDAD[prev ?? 'VERDE'] ?? 0;
         const currSev = SEVERIDAD[estado] ?? 0;
-        if (prev !== undefined && currSev > prevSev) newAlerts.push(item);
+        if (currSev > prevSev) newAlerts.push(item);
       }
 
       // ── Recordatorio 4 días en ROJO o AGOTADO ──
@@ -235,11 +237,13 @@ export function Alarmas() {
     setEnviando(false);
   }
 
-  // ── Registrar gestión (un click, sin formulario) ────────────────────────
-  async function marcarInformado(item: InventarioItem) {
+  // ── Registrar gestión con notas opcionales ──────────────────────────────
+  async function marcarInformado(item: InventarioItem, notas?: string) {
     setMarcando(item.code);
+    setModalItem(null);
+    setNotasModal('');
     try {
-      await registrar(item.code, getSemaforo(item), item.stock_actual);
+      await registrar(item.code, getSemaforo(item), item.stock_actual, undefined, notas || undefined);
       const payload = [{
         code: item.code, name: item.name, category: item.category,
         stock_actual: item.stock_actual, stock_min: item.stock_min, stock_bajo: item.stock_bajo,
@@ -280,7 +284,7 @@ export function Alarmas() {
     }), 'alarmas');
   }
 
-  return (
+  return (<>
     <div>
       <Header
         title="Alarmas y Semáforo"
@@ -396,7 +400,7 @@ export function Alarmas() {
                           <span className="text-xs text-slate-300">—</span>
                         ) : pendiente ? (
                           <button
-                            onClick={() => marcarInformado(item)}
+                            onClick={() => { setModalItem(item); setNotasModal(''); }}
                             disabled={marcando === item.code}
                             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-emerald-400 hover:text-emerald-700 hover:bg-emerald-50 transition disabled:opacity-50"
                           >
@@ -426,5 +430,41 @@ export function Alarmas() {
       </Card>
 
     </div>
-  );
+
+    {/* ── Modal de notas al informar ── */}
+    {modalItem && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+        <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+          <h3 className="text-base font-semibold text-slate-900 mb-1">Marcar como informado</h3>
+          <p className="text-sm text-slate-500 mb-4">
+            <span className="font-medium text-slate-700">{modalItem.code}</span> — {modalItem.name}
+          </p>
+          <label className="block text-xs font-medium text-slate-600 mb-1">
+            Observación <span className="text-slate-400 font-normal">(opcional)</span>
+          </label>
+          <textarea
+            value={notasModal}
+            onChange={e => setNotasModal(e.target.value)}
+            placeholder="Ej: Pedido enviado a proveedor, llegada estimada viernes..."
+            rows={3}
+            className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+          />
+          <div className="mt-4 flex gap-2 justify-end">
+            <button
+              onClick={() => { setModalItem(null); setNotasModal(''); }}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => marcarInformado(modalItem, notasModal)}
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            >
+              Confirmar e informar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>);
 }
