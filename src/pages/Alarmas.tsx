@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Bell, Download, CheckCircle2, Clock } from 'lucide-react';
 import { Header } from '../components/layout/Header';
@@ -61,8 +62,9 @@ export function Alarmas() {
   const { inventario, loading, recargar } = useInventario();
   const { productos } = useProductos();
   const { registrar, getUltima, necesitaInformar } = useAlertasGestion();
+  const [searchParams] = useSearchParams();
   const [busqueda, setBusqueda] = useState('');
-  const [filtroEstado, setFiltroEstado] = useState<Semaforo | ''>('');
+  const [filtroEstado, setFiltroEstado] = useState<Semaforo | ''>((searchParams.get('estado') as Semaforo) || '');
   const [enviando, setEnviando] = useState(false);
   const [marcando, setMarcando] = useState<string | null>(null); // code del producto en proceso
   const notifChecked = useRef(false);

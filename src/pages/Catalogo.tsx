@@ -629,11 +629,11 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                 <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[110px]">Cód. proveedor</th>
                 <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[160px]">Presentación detalle</th>
                 <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[100px]">Cant. x unidad</th>
-                <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[120px]">Unidad de conteo</th>
                 <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[110px]">Unidad base</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-700 min-w-[120px]">Unidad de conteo</th>
                 <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Stock mín.</th>
                 <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Stock alerta</th>
-                <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Lead time</th>
+                <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[90px]">Lead time (semana)</th>
                 <th className="px-3 py-2 text-right font-semibold text-slate-700 min-w-[110px]">Consumo sem.</th>
                 <th className="px-3 py-2 text-center font-semibold text-slate-700 min-w-[80px]">Req. lote</th>
                 <th className="px-3 py-2 text-center font-semibold text-slate-700 min-w-[80px]">Req. vence</th>
@@ -771,21 +771,6 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                     <td className="px-2 py-2">
                       {isEditing ? (
                         <select
-                          value={cambios.unit ?? product.unit ?? ''}
-                          onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], unit: e.target.value } }))}
-                          className="w-full rounded border border-slate-200 px-1 py-0.5 text-xs"
-                        >
-                          <option value="">—</option>
-                          {(() => { const v = cambios.unit ?? product.unit; return v && !unidadesConteo.includes(v) ? <option key={v} value={v}>{v}</option> : null; })()}
-                          {unidadesConteo.map(u => <option key={u} value={u}>{u}</option>)}
-                        </select>
-                      ) : (
-                        <span className="text-slate-600">{product.unit || '—'}</span>
-                      )}
-                    </td>
-                    <td className="px-2 py-2">
-                      {isEditing ? (
-                        <select
                           value={cambios.unit_base ?? product.unit_base ?? ''}
                           onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], unit_base: e.target.value } }))}
                           className="w-full rounded border border-slate-200 px-1 py-0.5 text-xs"
@@ -796,6 +781,21 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
                         </select>
                       ) : (
                         <span className="text-slate-600">{product.unit_base || '—'}</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2">
+                      {isEditing ? (
+                        <select
+                          value={cambios.unit ?? product.unit ?? ''}
+                          onChange={e => setEditando(prev => ({ ...prev, [product.code]: { ...prev[product.code], unit: e.target.value } }))}
+                          className="w-full rounded border border-slate-200 px-1 py-0.5 text-xs"
+                        >
+                          <option value="">—</option>
+                          {(() => { const v = cambios.unit ?? product.unit; return v && !unidadesConteo.includes(v) ? <option key={v} value={v}>{v}</option> : null; })()}
+                          {unidadesConteo.map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                      ) : (
+                        <span className="text-slate-600">{product.unit || '—'}</span>
                       )}
                     </td>
                     <td className="px-2 py-2">

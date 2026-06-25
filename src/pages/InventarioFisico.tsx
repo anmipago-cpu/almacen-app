@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { BadgeCategoria } from '../components/ui/Badge';
 import { useProductos } from '../hooks/useProductos';
+import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { formatNumero, hoy } from '../lib/utils';
 import type { InventarioFisicoItem } from '../types';
@@ -28,6 +29,7 @@ interface FilaCSV {
 
 export function InventarioFisico() {
   const { productos, recargar } = useProductos();
+  const { profile } = useAuth();
   const [counts, setCounts] = useState<Record<string, ConteoFila[]>>({});
   const [fecha, setFecha] = useState(hoy());
   const [realizadoPor, setRealizadoPor] = useState('');
@@ -148,6 +150,7 @@ export function InventarioFisico() {
         cantidad_contada: r.cantidad,
         unidad: r.unidad || 'UNIDAD',
         total_unidades_base: r.total_base!,
+        registrado_por: profile?.nombre || profile?.email || undefined,
       }));
       const { error: err } = await supabase.from('inventarios_fisicos').insert(entries);
       if (err) throw err;
@@ -190,6 +193,7 @@ export function InventarioFisico() {
             cantidad_contada: row.cantidad,
             unidad: product.unit || 'UNIDAD',
             total_unidades_base: row.cantidad * (product.unit_content || 1),
+            registrado_por: profile?.nombre || profile?.email || undefined,
           });
         }
       });

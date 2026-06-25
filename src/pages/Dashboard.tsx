@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Boxes, AlertTriangle, TrendingDown, XCircle, PackagePlus, ClipboardList, Database } from 'lucide-react';
+import { Boxes, AlertTriangle, TrendingDown, XCircle, PackagePlus, ClipboardList, Database, Search } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { StatCard, Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { BadgeEstado, BadgeCategoria } from '../components/ui/Badge';
 import { useInventario } from '../hooks/useInventario';
+import { useSearchContext } from '../context/SearchContext';
 import { getEstado } from '../types';
 import { formatNumero } from '../lib/utils';
 
@@ -16,9 +17,17 @@ const STATE_LABELS = [
   { key: 'OK', title: 'OK', icon: Boxes, color: 'green' },
 ];
 
+const ESTADO_TO_SEMAFORO: Record<string, string> = {
+  AGOTADO: 'AGOTADO',
+  CRITICO: 'ROJO',
+  BAJO: 'AMARILLO',
+  OK: 'VERDE',
+};
+
 export function Dashboard() {
   const navigate = useNavigate();
   const { inventario, loading } = useInventario();
+  const { searchQuery, setSearchQuery } = useSearchContext();
 
   const resumen = useMemo(() => {
     const counts = { AGOTADO: 0, CRITICO: 0, BAJO: 0, OK: 0 } as Record<string, number>;
@@ -56,11 +65,29 @@ export function Dashboard() {
         }
       />
 
+      {/* Buscador global */}
+      <div className="relative mb-5">
+        <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Buscar producto por código, nombre o proveedor..."
+          className="w-full rounded-2xl border border-slate-300 bg-white px-12 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+        />
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard title="Agotados" value={resumen.agotados} icon={<XCircle size={22} />} color="gray" />
-        <StatCard title="Críticos" value={resumen.criticos} icon={<AlertTriangle size={22} />} color="red" />
-        <StatCard title="Bajos" value={resumen.bajos} icon={<TrendingDown size={22} />} color="yellow" />
-        <StatCard title="OK" value={resumen.ok} icon={<Boxes size={22} />} color="green" />
+        {[
+          { key: 'AGOTADO', title: 'Agotados', icon: <XCircle size={22} />, color: 'gray' as const },
+          { key: 'CRITICO', title: 'Críticos', icon: <AlertTriangle size={22} />, color: 'red' as const },
+          { key: 'BAJO',    title: 'Bajos',    icon: <TrendingDown size={22} />, color: 'yellow' as const },
+          { key: 'OK',      title: 'OK',        icon: <Boxes size={22} />,       color: 'green' as const },
+        ].map(({ key, title, icon, color }) => (
+          <div key={key} className="cursor-pointer hover:scale-[1.02] transition-transform"
+            onClick={() => navigate(`/alarmas?estado=${ESTADO_TO_SEMAFORO[key]}`)}>
+            <StatCard title={title} value={resumen[key]} icon={icon} color={color} />
+          </div>
+        ))}
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
@@ -113,12 +140,14 @@ export function Dashboard() {
             </div>
             <div className="grid gap-3">
               {STATE_LABELS.map(item => (
-                <div key={item.key} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <div key={item.key}
+                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 cursor-pointer hover:bg-slate-100 transition-colors"
+                  onClick={() => navigate(`/alarmas?estado=${ESTADO_TO_SEMAFORO[item.key]}`)}>
                   <div className="flex items-center gap-3">
                     <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700"><item.icon size={18} /></span>
                     <div>
                       <p className="text-sm font-semibold text-slate-800">{item.title}</p>
-                      <p className="text-xs text-slate-500">Estatus por categoría</p>
+                      <p className="text-xs text-slate-500">Ver en Alarmas</p>
                     </div>
                   </div>
                   <span className="text-xl font-bold text-slate-900">{resumen[item.key]}</span>

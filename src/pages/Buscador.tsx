@@ -147,6 +147,10 @@ export function Buscador() {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Presentación</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Unidad</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Contenido</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Consumo prom./sem.</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Lead time sem.</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Stock mín</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Stock bajo</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Estado</th>
               </tr>
             </thead>
@@ -168,6 +172,10 @@ export function Buscador() {
                   <td className="px-4 py-3 text-slate-600">{product.presentation || '—'}</td>
                   <td className="px-4 py-3 text-slate-600">{product.unit || '—'}</td>
                   <td className="px-4 py-3 text-right text-slate-700 font-mono">{formatNumero(product.unit_content || 1, 0)}</td>
+                  <td className="px-4 py-3 text-right font-mono text-slate-700">{product.consumo_promedio_semanal != null ? formatNumero(product.consumo_promedio_semanal) : '—'}</td>
+                  <td className="px-4 py-3 text-right font-mono text-slate-700">{product.lead_time_semanas != null ? formatNumero(product.lead_time_semanas, 1) : '—'}</td>
+                  <td className="px-4 py-3 text-right font-mono text-slate-700">{product.stock_min != null ? formatNumero(product.stock_min, 0) : '—'}</td>
+                  <td className="px-4 py-3 text-right font-mono text-slate-700">{product.stock_bajo != null ? formatNumero(product.stock_bajo, 0) : '—'}</td>
                   <td className="px-4 py-3 text-center">
                     {product.active === false
                       ? <span className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500">Inactivo</span>

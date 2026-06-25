@@ -312,6 +312,7 @@ export function Inventario() {
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[100px]">Unidad base</th>
                       <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[90px]">Stock mín</th>
                       <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[90px]">Estado</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 min-w-[130px]">Proveedor</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -333,6 +334,7 @@ export function Inventario() {
                         <td className="px-4 py-3 text-slate-500 text-xs font-medium">{item.unit_base || '—'}</td>
                         <td className="px-4 py-3 text-right text-slate-600">{item.stock_min}</td>
                         <td className="px-4 py-3 text-center"><BadgeEstado estado={getEstado(item)} /></td>
+                        <td className="px-4 py-3 text-slate-500 text-xs truncate max-w-[130px]">{item.supplier || '—'}</td>
                       </tr>
                     ))}
                   </tbody>

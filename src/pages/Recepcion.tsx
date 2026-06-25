@@ -12,6 +12,7 @@ import { useProveedores } from '../hooks/useProveedores';
 import { useRegistros } from '../hooks/useRegistros';
 import { usePersonas } from '../hooks/usePersonas';
 import { useSearchContext } from '../context/SearchContext';
+import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { hoy, formatNumero, formatFecha } from '../lib/utils';
 import type { Producto, Registro } from '../types';
@@ -46,6 +47,7 @@ export function Recepcion() {
   const { proveedores } = useProveedores();
   const { personas } = usePersonas();
   const { guardarRegistro } = useRegistros({ porPagina: 1 });
+  const { profile } = useAuth();
   const [mesFiltro, setMesFiltro] = useState(getMesActual);
   const { inicio, fin } = rangoMes(mesFiltro.mes, mesFiltro.año);
   const { registros: historial, loading: loadingHistorial } = useRegistros({ fechaDesde: inicio, fechaHasta: fin, porPagina: 200 });
@@ -187,6 +189,7 @@ export function Recepcion() {
         contenido_por_unidad: contenidoProducto,
         total_unidades_base: totalUnidades,
         observaciones: data.observaciones || undefined,
+        registrado_por: profile?.nombre || profile?.email || undefined,
       });
 
       toast.success(`Recepción guardada: ${productoSeleccionado.name} — ${formatNumero(totalUnidades)} ${productoSeleccionado.unit_base || productoSeleccionado.unit || 'unidades'}`);
@@ -314,6 +317,7 @@ export function Recepcion() {
         ...item,
         fecha: item.fecha || bulkFecha,
         recibido_por: item.recibido_por || bulkResponsable,
+        registrado_por: profile?.nombre || profile?.email || undefined,
       }));
       const { error } = await supabase.from('recepciones').insert(payload);
       if (error) throw error;
@@ -723,6 +727,7 @@ export function Recepcion() {
                     <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Conteo</th>
                     <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Base</th>
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500">Observaciones</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">Registrado por</th>
                     <th className="px-3 py-2.5 text-center font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap w-[80px]">Acciones</th>
                   </tr>
                 </thead>
@@ -849,6 +854,9 @@ export function Recepcion() {
                         <td className="px-3 py-2 text-slate-400 text-xs max-w-[180px] truncate" title={rec.observaciones || ''}>
                           {rec.observaciones || '—'}
                         </td>
+                        <td className="px-3 py-2 text-slate-500 text-xs whitespace-nowrap">
+                          {rec.registrado_por || '—'}
+                        </td>
                         <td className="px-2 py-2">
                           <div className="flex items-center justify-center gap-1">
                             <button
@@ -871,7 +879,7 @@ export function Recepcion() {
                 </tbody>
                 <tfoot className="bg-slate-50 border-t-2 border-slate-200">
                   <tr>
-                    <td colSpan={7} className="px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wide">
+                    <td colSpan={8} className="px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wide">
                       Total · {historialFiltrado.length} recepciones
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-900">

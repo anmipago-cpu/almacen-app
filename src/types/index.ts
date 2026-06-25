@@ -51,6 +51,7 @@ export interface Registro {
   contenido_por_unidad?: number;
   total_unidades_base: number;
   observaciones?: string;
+  registrado_por?: string;
   created_at?: string;
 }
 
@@ -98,6 +99,7 @@ export interface InventarioFisicoItem {
   cantidad_contada: number;
   unidad?: string;
   total_unidades_base: number;
+  registrado_por?: string;
   created_at?: string;
 }
 
