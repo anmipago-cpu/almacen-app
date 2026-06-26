@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Bell, Download, CheckCircle2, Clock } from 'lucide-react';
+import { Bell, Download, CheckCircle2, Clock, Printer } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -340,6 +340,7 @@ export function Alarmas() {
             <div className="flex gap-2 flex-wrap">
               <Button variant="outline" onClick={handleNotificar} loading={enviando} icon={<Bell size={15} />}>Notificar</Button>
               <Button variant="outline" onClick={handleExport} icon={<Download size={15} />}>Exportar Excel</Button>
+              <Button variant="outline" onClick={() => window.print()} icon={<Printer size={15} />}>Imprimir</Button>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 items-center">

@@ -45,6 +45,8 @@ export function SolicitudesInformadas() {
   const [registros, setRegistros] = useState<GestionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [notaEditar, setNotaEditar] = useState('');
   const [guardando, setGuardando] = useState(false);
@@ -95,18 +97,22 @@ export function SolicitudesInformadas() {
   }
 
   const filtrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    if (!q) return registros;
+    const q     = busqueda.trim().toLowerCase();
+    const desde = fechaDesde ? new Date(fechaDesde + 'T00:00:00') : null;
+    const hasta = fechaHasta ? new Date(fechaHasta + 'T23:59:59') : null;
     return registros.filter(r => {
-      const prod = productoMap[r.producto_code];
-      return (
+      const prod  = productoMap[r.producto_code];
+      const fecha = new Date(r.created_at);
+      const matchTexto = !q ||
         r.producto_code.toLowerCase().includes(q) ||
         (prod?.name ?? '').toLowerCase().includes(q) ||
         r.estado.toLowerCase().includes(q) ||
-        (r.notas ?? '').toLowerCase().includes(q)
-      );
+        (r.notas ?? '').toLowerCase().includes(q);
+      const matchDesde = !desde || fecha >= desde;
+      const matchHasta = !hasta || fecha <= hasta;
+      return matchTexto && matchDesde && matchHasta;
     });
-  }, [registros, busqueda, productoMap]);
+  }, [registros, busqueda, fechaDesde, fechaHasta, productoMap]);
 
   const contadores = useMemo(() => {
     const hoy7 = new Date(); hoy7.setDate(hoy7.getDate() - 7);
@@ -170,17 +176,52 @@ export function SolicitudesInformadas() {
       </div>
 
       <Card>
-        <div className="relative mb-4">
-          <Search size={16} className="pointer-events-none absolute left-4 top-3.5 text-slate-400" />
-          <input
-            value={busqueda}
-            onChange={e => setBusqueda(e.target.value)}
-            placeholder="Buscar por código, nombre, estado o nota..."
-            className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-12 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-          />
-          <span className="absolute right-4 top-3.5 text-xs text-slate-400">
-            {loading ? '...' : `${filtrados.length} registros`}
-          </span>
+        {/* Filtros */}
+        <div className="flex flex-wrap gap-3 mb-4 no-print">
+          {/* Buscador */}
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={16} className="pointer-events-none absolute left-4 top-3.5 text-slate-400" />
+            <input
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              placeholder="Buscar por código, nombre, estado o nota..."
+              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-12 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+          {/* Desde */}
+          <div className="flex flex-col justify-center">
+            <label className="text-xs text-slate-400 mb-1 ml-1">Desde</label>
+            <input
+              type="date"
+              value={fechaDesde}
+              onChange={e => setFechaDesde(e.target.value)}
+              className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          {/* Hasta */}
+          <div className="flex flex-col justify-center">
+            <label className="text-xs text-slate-400 mb-1 ml-1">Hasta</label>
+            <input
+              type="date"
+              value={fechaHasta}
+              onChange={e => setFechaHasta(e.target.value)}
+              className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          {/* Limpiar */}
+          {(busqueda || fechaDesde || fechaHasta) && (
+            <div className="flex items-end">
+              <button
+                onClick={() => { setBusqueda(''); setFechaDesde(''); setFechaHasta(''); }}
+                className="rounded-2xl border border-slate-200 px-4 py-2.5 text-xs text-slate-500 hover:bg-slate-50"
+              >
+                Limpiar filtros
+              </button>
+            </div>
+          )}
+          <div className="flex items-end ml-auto">
+            <span className="text-xs text-slate-400">{loading ? '...' : `${filtrados.length} registros`}</span>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
