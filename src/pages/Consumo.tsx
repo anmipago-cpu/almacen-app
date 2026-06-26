@@ -200,6 +200,10 @@ export function Consumo() {
 
   function agregarLinea() {
     if (!productoSel) { setProductoError('Selecciona un producto'); return; }
+    if (productoSel.requires_lot && !lote.trim()) {
+      toast.error(`"${productoSel.name}" requiere número de lote para registrar consumo.`);
+      return;
+    }
     const cant = parseFloat(cantidad.replace(',', '.'));
     if (isNaN(cant) || cant < 0) { toast.error('Ingresa una cantidad válida'); return; }
     const ya = lineas.find(l => l.producto.code === productoSel.code && l.lote === lote.trim());
@@ -589,7 +593,11 @@ export function Consumo() {
                 </div>
                 <div>
                   <label className="text-xs text-slate-600">
-                    Lote {lotesDisponibles.length > 0 ? <span className="text-blue-600 font-medium">(selecciona arriba)</span> : '(opcional)'}
+                    Lote {productoSel?.requires_lot
+                      ? <span className="text-red-600 font-semibold">* OBLIGATORIO</span>
+                      : lotesDisponibles.length > 0
+                        ? <span className="text-blue-600 font-medium">(selecciona arriba)</span>
+                        : '(opcional)'}
                   </label>
                   <input type="text" value={lote}
                     onChange={e => setLote(e.target.value)}
