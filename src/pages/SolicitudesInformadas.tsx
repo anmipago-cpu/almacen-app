@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Pencil, Check, X } from 'lucide-react';
+import { Search, Pencil, Check, X, Download, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
 import { supabase } from '../lib/supabase';
 import { useProductos } from '../hooks/useProductos';
+import { exportarExcel } from '../lib/utils';
 
 interface GestionRecord {
   id: string;
@@ -115,11 +117,41 @@ export function SolicitudesInformadas() {
     };
   }, [registros]);
 
+  function handleExportExcel() {
+    if (!filtrados.length) { toast.info('No hay registros para exportar.'); return; }
+    const ESTADO_LABEL: Record<string, string> = {
+      AGOTADO: 'Sin stock', ROJO: 'Crítico', AMARILLO: 'Alerta', VERDE: 'OK',
+    };
+    const datos = filtrados.map(r => ({
+      'Fecha solicitud': formatFecha(r.created_at),
+      'Código': r.producto_code,
+      'Producto': productoMap[r.producto_code]?.name ?? r.producto_code,
+      'Estado': ESTADO_LABEL[r.estado] ?? r.estado,
+      'Stock al informar': r.stock_actual,
+      'Notas': r.notas ?? '',
+    }));
+    exportarExcel(datos as Record<string, unknown>[], 'solicitudes_informadas');
+  }
+
+  function handlePrint() {
+    window.print();
+  }
+
   return (
     <div>
       <Header
         title="Solicitudes Informadas"
         subtitle="Historial de productos en alarma informados al área de compras."
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" icon={<Download size={15} />} onClick={handleExportExcel}>
+              Exportar Excel
+            </Button>
+            <Button variant="outline" icon={<Printer size={15} />} onClick={handlePrint}>
+              Imprimir
+            </Button>
+          </div>
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-3 mb-5">

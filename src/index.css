@@ -32,3 +32,21 @@
     font-family: 'IBM Plex Mono', monospace;
   }
 }
+
+@media print {
+  /* Ocultar sidebar, header de navegación y botones de acción */
+  aside, nav, header .no-print, [data-print-hide],
+  button, .no-print { display: none !important; }
+
+  /* Ocupar todo el ancho */
+  body { background: white !important; }
+  main, #root > div { padding: 0 !important; margin: 0 !important; }
+
+  /* Tabla legible en papel */
+  table { font-size: 11px; width: 100%; }
+  th, td { padding: 4px 8px !important; border: 1px solid #e2e8f0; }
+  thead { background: #f8fafc !important; -webkit-print-color-adjust: exact; }
+
+  /* Evitar que las filas se corten entre páginas */
+  tr { page-break-inside: avoid; }
+}
