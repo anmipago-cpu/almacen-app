@@ -60,10 +60,3 @@ jobs:
           git diff --cached --quiet || git commit -m "backup: $DATE"
           git push origin backups
 
-      - name: Crear ZIP del código (solo semanal o manual completo)
-        if: github.event.schedule == '0 5 * * 0' || github.event.inputs.tipo == 'completo'
-        run: |
-          DATE=$(TZ=America/Bogota date +%Y-%m-%d)
-          git checkout main
-          git archive --format=zip --output="backup_output/$DATE/codigo_almacen_${DATE}.zip" HEAD
-          echo "ZIP creado: codigo_almacen_${DATE}.zip"
