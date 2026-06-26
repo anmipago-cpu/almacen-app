@@ -144,9 +144,20 @@ export function ConsumoSemanal() {
   return (
     <div>
       <Header
-        title="Consumo Semanal"
-        subtitle="Carga semanal desde Excel o CSV y guarda el histórico por semana."
+        title="Carga Semanal (Solo monitoreo)"
+        subtitle="Registra consumos históricos por semana para seguimiento. No descuenta inventario."
       />
+
+      {/* Aviso destacado */}
+      <div className="mb-5 flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4">
+        <span className="mt-0.5 text-blue-500 text-lg">ℹ️</span>
+        <div>
+          <p className="text-sm font-semibold text-blue-800">Esta opción NO descuenta inventario</p>
+          <p className="text-sm text-blue-700 mt-0.5">
+            Los datos cargados aquí son únicamente para monitoreo y estadísticas. Puedes consultarlos en <strong>Historial</strong>. Para descontar materiales del inventario usa el módulo <strong>Consumo</strong>.
+          </p>
+        </div>
+      </div>
 
       <Card>
         <div className="space-y-6">
