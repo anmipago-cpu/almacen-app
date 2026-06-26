@@ -29,20 +29,26 @@ export function Dashboard() {
   const { inventario, loading } = useInventario();
   const { searchQuery, setSearchQuery } = useSearchContext();
 
+  // Solo productos con parámetros configurados (igual criterio que Alarmas)
+  const configurados = useMemo(() => inventario.filter(item =>
+    (item.lead_time_semanas && item.lead_time_semanas > 0 && item.promedio_consumo_semanal > 0) ||
+    item.stock_min > 0 || item.stock_bajo > 0
+  ), [inventario]);
+
   const resumen = useMemo(() => {
     const counts = { AGOTADO: 0, CRITICO: 0, BAJO: 0, OK: 0 } as Record<string, number>;
-    inventario.forEach(item => {
+    configurados.forEach(item => {
       const estado = getEstado(item);
       counts[estado] += 1;
     });
     return counts;
-  }, [inventario]);
+  }, [configurados]);
 
   const urgentes = useMemo(() => {
-    return [...inventario]
+    return [...configurados]
       .sort((a, b) => (a.semanas_restantes ?? 999) - (b.semanas_restantes ?? 999))
       .slice(0, 10);
-  }, [inventario]);
+  }, [configurados]);
 
 
   return (
