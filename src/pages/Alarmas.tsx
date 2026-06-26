@@ -127,65 +127,72 @@ export function Alarmas() {
   }), [datos, filtroEstado, busqueda]);
 
   // ── Detección automática de cambios de estado ───────────────────────────
+  // Reglas:
+  //  1. Notifica cuando el estado EMPEORA respecto al último notificado (VERDE→AMARILLO, AMARILLO→ROJO, etc.)
+  //  2. Nunca repite la misma notificación para el mismo estado en el mismo producto
+  //  3. Recordatorio si lleva 4+ días en ROJO/AGOTADO (máx 1 vez por día)
+  //  4. Resumen completo los lunes (una vez por semana)
   useEffect(() => {
     if (loading || notifChecked.current || configurados.length === 0) return;
     notifChecked.current = true;
 
-    const KEY          = 'alarmas_last_states';
-    const ENTRY_KEY    = 'alarmas_entry_times';
-    const WEEKLY_KEY   = 'alarmas_weekly_sent';
-    const now          = Date.now();
-    const MS_4_DAYS    = 4 * 24 * 60 * 60 * 1000;
-    const MS_24H       = 24 * 60 * 60 * 1000;
-    const hoyDia       = new Date().getDay(); // 0=dom, 1=lun
-    const inicioSemana = (() => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - (hoyDia === 0 ? 6 : hoyDia - 1)); return d.toISOString().slice(0,10); })();
+    // notified: { [code]: { estado, notifiedAt } } — cuándo fue la última notificación y en qué estado
+    const NOTIFIED_KEY  = 'alarmas_notified_v2';
+    const WEEKLY_KEY    = 'alarmas_weekly_sent';
+    const now           = Date.now();
+    const MS_4_DAYS     = 4 * 24 * 60 * 60 * 1000;
+    const MS_24H        = 24 * 60 * 60 * 1000;
+    const hoyDia        = new Date().getDay();
+    const inicioSemana  = (() => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - (hoyDia === 0 ? 6 : hoyDia - 1)); return d.toISOString().slice(0,10); })();
 
-    let lastStates: Record<string, string> = {};
-    let entryTimes: Record<string, { enteredAt: number; lastReminded: number | null }> = {};
-    try { lastStates  = JSON.parse(localStorage.getItem(KEY)       || '{}'); } catch { /* noop */ }
-    try { entryTimes  = JSON.parse(localStorage.getItem(ENTRY_KEY) || '{}'); } catch { /* noop */ }
+    let notified: Record<string, { estado: string; notifiedAt: number; enteredCriticalAt: number | null }> = {};
+    try { notified = JSON.parse(localStorage.getItem(NOTIFIED_KEY) || '{}'); } catch { /* noop */ }
 
-    const currentStates: Record<string, string> = {};
-    const newAlerts:     InventarioItem[] = [];
-    const reminders:     InventarioItem[] = [];
+    const toNotify:   InventarioItem[] = [];
+    const reminders:  InventarioItem[] = [];
 
     configurados.forEach(item => {
-      const estado = getSemaforo(item);
-      currentStates[item.code] = estado;
+      const estado    = getSemaforo(item);
+      const currSev   = SEVERIDAD[estado] ?? 0;
+      const prev      = notified[item.code];
+      const prevSev   = SEVERIDAD[prev?.estado ?? 'VERDE'] ?? 0;
 
-      // ── Cambios de estado (nueva alerta o primer avistamiento) ──
-      if (estado !== 'VERDE') {
-        const prev    = lastStates[item.code];
-        const prevSev = SEVERIDAD[prev ?? 'VERDE'] ?? 0;
-        const currSev = SEVERIDAD[estado] ?? 0;
-        if (currSev > prevSev) newAlerts.push(item);
+      if (estado === 'VERDE') {
+        // Mejoró a verde: limpiar tracking de crítico
+        if (prev) notified[item.code] = { ...prev, estado: 'VERDE', enteredCriticalAt: null };
+        return;
       }
 
-      // ── Recordatorio 4 días en ROJO o AGOTADO ──
       const isCritical = estado === 'ROJO' || estado === 'AGOTADO';
-      if (!isCritical) {
-        delete entryTimes[item.code];
+
+      // ── Notificar si el estado empeoró ──
+      if (currSev > prevSev) {
+        toNotify.push(item);
+        notified[item.code] = {
+          estado,
+          notifiedAt: now,
+          enteredCriticalAt: isCritical ? (prev?.enteredCriticalAt ?? now) : null,
+        };
         return;
       }
-      if (!entryTimes[item.code]) {
-        entryTimes[item.code] = { enteredAt: now, lastReminded: null };
-        return;
-      }
-      const { enteredAt, lastReminded } = entryTimes[item.code];
-      const elapsed       = now - enteredAt;
-      const sinceReminded = lastReminded ? now - lastReminded : Infinity;
-      if (elapsed >= MS_4_DAYS && sinceReminded >= MS_24H) {
-        reminders.push(item);
-        entryTimes[item.code].lastReminded = now;
+
+      // ── Recordatorio 4 días en crítico (máx 1 por día) ──
+      if (isCritical && prev) {
+        const enteredAt     = prev.enteredCriticalAt ?? prev.notifiedAt;
+        const sinceEntered  = now - enteredAt;
+        const sinceNotified = now - prev.notifiedAt;
+        if (sinceEntered >= MS_4_DAYS && sinceNotified >= MS_24H) {
+          reminders.push(item);
+          notified[item.code] = { ...prev, notifiedAt: now };
+        }
       }
     });
 
-    localStorage.setItem(KEY,       JSON.stringify(currentStates));
-    localStorage.setItem(ENTRY_KEY, JSON.stringify(entryTimes));
+    localStorage.setItem(NOTIFIED_KEY, JSON.stringify(notified));
 
-    if (newAlerts.length > 0) {
-      toast.warning(`${newAlerts.length} nueva(s) alerta(s) detectada(s). Enviando notificaciones...`);
-      sendAlerts(newAlerts, false);
+    if (toNotify.length > 0) {
+      toast.warning(`${toNotify.length} producto(s) con nueva alerta. Enviando notificaciones...`);
+      sendAlerts(toNotify, false);
     }
     if (reminders.length > 0) {
       toast.warning(`${reminders.length} producto(s) llevan 4+ días en estado crítico. Enviando recordatorio...`);
