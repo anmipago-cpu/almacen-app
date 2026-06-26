@@ -149,12 +149,12 @@ export function ConsumoSemanal() {
       />
 
       {/* Aviso destacado */}
-      <div className="mb-5 flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4">
-        <span className="mt-0.5 text-blue-500 text-lg">ℹ️</span>
+      <div className="mb-5 flex items-start gap-3 rounded-2xl border-2 border-red-400 bg-red-50 px-5 py-4 shadow-sm">
+        <span className="mt-0.5 text-2xl">⚠️</span>
         <div>
-          <p className="text-sm font-semibold text-blue-800">Esta opción NO descuenta inventario</p>
-          <p className="text-sm text-blue-700 mt-0.5">
-            Los datos cargados aquí son únicamente para monitoreo y estadísticas. Puedes consultarlos en <strong>Historial</strong>. Para descontar materiales del inventario usa el módulo <strong>Consumo</strong>.
+          <p className="text-sm font-bold text-red-700 uppercase tracking-wide">Esta opción NO descuenta inventario</p>
+          <p className="text-sm text-red-700 mt-1">
+            Los datos cargados aquí son únicamente para <strong>monitoreo y estadísticas</strong>. Puedes consultarlos en <strong>Historial</strong>. Para descontar materiales del inventario usa el módulo <strong>Consumo</strong>.
           </p>
         </div>
       </div>
