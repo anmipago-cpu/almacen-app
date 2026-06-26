@@ -41,22 +41,32 @@ jobs:
       - name: Guardar en rama backups (GitHub)
         run: |
           DATE=$(TZ=America/Bogota date +%Y-%m-%d)
+
+          # Guardar los JSON en un directorio temporal fuera del repo
+          TEMP=$(mktemp -d)
+          cp -r "backup_output/$DATE/." "$TEMP/"
+
           git config user.name  "Backup Bot"
           git config user.email "backup@almacen-app.bot"
 
+          # Ir a rama backups limpia (solo backups, sin código fuente)
           git fetch origin backups 2>/dev/null || true
-          git checkout backups 2>/dev/null || git checkout --orphan backups
-
-          if git show-ref --verify --quiet refs/heads/backups; then
-            git rm -rf --cached . 2>/dev/null || true
+          if git ls-remote --exit-code --heads origin backups > /dev/null 2>&1; then
+            git checkout backups
+          else
+            git checkout --orphan backups
+            git rm -rf . --quiet 2>/dev/null || true
+            rm -rf ./* ./.*  2>/dev/null || true
           fi
 
+          # Copiar solo los JSON del backup
           mkdir -p "$DATE"
-          cp -r "backup_output/$DATE/." "$DATE/"
+          cp "$TEMP/"*.json "$DATE/"
 
-          find . -maxdepth 1 -type d -name "20*" | sort | head -n -30 | xargs -r git rm -rf --
+          # Eliminar backups con más de 30 días
+          find . -maxdepth 1 -type d -name "20*" | sort | head -n -30 | xargs -r rm -rf
 
-          git add .
+          git add "$DATE/"
           git diff --cached --quiet || git commit -m "backup: $DATE"
-          git push origin backups
+          git push --force origin backups
 
