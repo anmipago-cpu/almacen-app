@@ -107,6 +107,34 @@ async function main() {
     'utf-8'
   );
 
+  // ─── ZIP del código fuente ───────────────────────────────────────────────
+  try {
+    const REPO_DIR = path.join(__dirname, '..');
+    const zipPath  = path.join(carpeta, `codigo_almacen_${fecha}.zip`);
+    const { execSync } = await import('child_process');
+
+    // Carpetas y archivos a incluir
+    const incluir = ['src', 'api', 'scripts', 'public', 'supabase',
+      'index.html', 'package.json', 'vite.config.ts', 'tsconfig.json',
+      'tsconfig.app.json', 'tsconfig.node.json', '.github'];
+
+    // Crear ZIP con archivos que existen
+    const existentes = incluir.filter(f =>
+      fs.existsSync(path.join(REPO_DIR, f))
+    );
+
+    // Usar PowerShell para comprimir en Windows
+    const listaPS = existentes.map(f => `"${path.join(REPO_DIR, f)}"`).join(', ');
+    execSync(
+      `powershell -Command "Compress-Archive -Path ${listaPS} -DestinationPath '${zipPath}' -Force"`,
+      { stdio: 'pipe' }
+    );
+    const sizeKB = Math.round(fs.statSync(zipPath).size / 1024);
+    console.log(`  ✅ código fuente: ${sizeKB} KB → ${path.basename(zipPath)}`);
+  } catch (err) {
+    console.error(`  ❌ ZIP código fuente: ${err.message}`);
+  }
+
   // ─── Limpiar backups con más de 30 días ─────────────────────────────────
   const hace30 = new Date();
   hace30.setDate(hace30.getDate() - 30);
@@ -122,7 +150,7 @@ async function main() {
   }
   if (eliminados > 0) console.log(`\n🧹 ${eliminados} backup(s) antiguo(s) eliminado(s)`);
 
-  console.log(`\n✔  Backup completado: ${exitosos}/${TABLAS.length} tablas guardadas en ${carpeta}`);
+  console.log(`\n✔  Backup completado: ${exitosos}/${TABLAS.length} tablas + código fuente en ${carpeta}`);
   if (exitosos < TABLAS.length) process.exit(1);
 }
 
