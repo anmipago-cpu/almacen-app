@@ -109,26 +109,30 @@ async function main() {
 
   // ─── ZIP del código fuente ───────────────────────────────────────────────
   try {
+    const os     = await import('os');
     const REPO_DIR = path.join(__dirname, '..');
     const zipPath  = path.join(carpeta, `codigo_almacen_${fecha}.zip`);
     const { execSync } = await import('child_process');
+    const tmpDir = path.join(os.default.tmpdir(), 'almacen_backup_temp');
 
-    // Carpetas y archivos a incluir
-    const incluir = ['src', 'api', 'scripts', 'public', 'supabase',
-      'index.html', 'package.json', 'vite.config.ts', 'tsconfig.json',
-      'tsconfig.app.json', 'tsconfig.node.json', '.github'];
+    // Script PowerShell: copia repo (sin node_modules/.git/dist) y comprime
+    const psScript = `
+$src  = '${REPO_DIR}'
+$dest = '${zipPath}'
+$tmp  = '${tmpDir}'
+$excl = @('node_modules','.git','dist','backup_output')
+if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
+New-Item -ItemType Directory -Path $tmp | Out-Null
+Get-ChildItem -Path $src | Where-Object { $excl -notcontains $_.Name } | Copy-Item -Destination $tmp -Recurse -Force
+Compress-Archive -Path "$tmp\\*" -DestinationPath $dest -Force
+Remove-Item $tmp -Recurse -Force
+`.trim();
 
-    // Crear ZIP con archivos que existen
-    const existentes = incluir.filter(f =>
-      fs.existsSync(path.join(REPO_DIR, f))
-    );
+    const psFile = path.join(os.default.tmpdir(), 'backup_zip.ps1');
+    fs.writeFileSync(psFile, psScript, 'utf-8');
+    execSync(`powershell -ExecutionPolicy Bypass -File "${psFile}"`, { stdio: 'pipe' });
+    fs.unlinkSync(psFile);
 
-    // Usar PowerShell para comprimir en Windows
-    const listaPS = existentes.map(f => `"${path.join(REPO_DIR, f)}"`).join(', ');
-    execSync(
-      `powershell -Command "Compress-Archive -Path ${listaPS} -DestinationPath '${zipPath}' -Force"`,
-      { stdio: 'pipe' }
-    );
     const sizeKB = Math.round(fs.statSync(zipPath).size / 1024);
     console.log(`  ✅ código fuente: ${sizeKB} KB → ${path.basename(zipPath)}`);
   } catch (err) {
