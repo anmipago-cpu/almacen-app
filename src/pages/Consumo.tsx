@@ -330,6 +330,11 @@ export function Consumo() {
     setBulkItems([]);
     const file = event.target.files?.[0];
     if (!file) return;
+    if (modo === 'semanal' && !semana) {
+      setBulkErrors(['Debes seleccionar la semana antes de cargar el archivo.']);
+      event.target.value = '';
+      return;
+    }
     setImporting(true);
     try {
       const text = await file.text();
