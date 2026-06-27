@@ -1,9 +1,9 @@
 {
   "fecha": "2026-06-27",
-  "timestamp": "2026-06-27T07:42:50.799566",
+  "timestamp": "2026-06-27T13:51:32.556309",
   "tablas": {
     "productos": 192,
-    "recepciones": 353,
+    "recepciones": 358,
     "user_profiles": 7,
     "alertas_gestion": 30,
     "inventarios_fisicos": 0
