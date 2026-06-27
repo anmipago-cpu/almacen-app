@@ -309,7 +309,7 @@ export function Consumo() {
       const cant = parseFloat((record.cantidad || '0').replace(',', '.'));
       const met = METODOS.find(m => m.value === (record.metodo || '').toUpperCase()) || METODOS[0];
       return {
-        fecha: record.fecha || bulkFecha,
+        fecha: record.fecha || (modo === 'semanal' && semana ? isoWeekToRange(semana).fin : bulkFecha),
         tipo: met.tipo,
         producto_code: code,
         producto_name: found?.name || '',
@@ -368,7 +368,7 @@ export function Consumo() {
         ...item,
         tipo: metodoConfig.tipo,
         recibido_por: item.recibido_por || bulkResponsable,
-        fecha: item.fecha || bulkFecha,
+        fecha: item.fecha || (modo === 'semanal' && semana ? isoWeekToRange(semana).fin : bulkFecha),
       }));
       const { error } = await supabase.from('recepciones').insert(payload);
       if (error) throw error;
@@ -723,8 +723,14 @@ export function Consumo() {
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700">Fecha por defecto</label>
-                <input type="date" value={bulkFecha} onChange={e => setBulkFecha(e.target.value)}
-                  className="mt-1 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm" />
+                {modo === 'semanal' && semana ? (
+                  <div className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                    {isoWeekToRange(semana).fin} <span className="text-slate-400">(fin de semana seleccionada)</span>
+                  </div>
+                ) : (
+                  <input type="date" value={bulkFecha} onChange={e => setBulkFecha(e.target.value)}
+                    className="mt-1 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm" />
+                )}
               </div>
             </div>
 
