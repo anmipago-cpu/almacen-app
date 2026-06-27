@@ -340,7 +340,7 @@ export function Consumo() {
         const row = i + 2;
         if (!item.producto_code) { errors.push(`Fila ${row}: falta código`); return; }
         if (!item.producto_name) { errors.push(`Fila ${row}: "${item.producto_code}" no existe en el catálogo`); return; }
-        if (!(item.cantidad_unidad_natural > 0)) { errors.push(`Fila ${row}: cantidad debe ser mayor que 0`); return; }
+        if (!(item.cantidad_unidad_natural > 0)) { return; }
         valid.push(item);
       });
       setBulkItems(valid);
