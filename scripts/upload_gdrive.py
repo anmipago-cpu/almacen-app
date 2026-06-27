@@ -1,6 +1,6 @@
 """
-Sube la carpeta backup_output a Google Drive.
-Requiere: GDRIVE_CREDENTIALS (JSON de service account) y GDRIVE_FOLDER_ID.
+Sube el backup (JSON + ZIP) a Google Drive.
+Requiere: GDRIVE_CREDENTIALS y GDRIVE_FOLDER_ID como variables de entorno.
 """
 import os
 import json
@@ -19,6 +19,10 @@ if not CREDENTIALS_JSON or not FOLDER_ID:
     print('GDRIVE_CREDENTIALS o GDRIVE_FOLDER_ID no configurados — saltando Google Drive')
     exit(0)
 
+if not os.path.exists(BACKUP_DIR):
+    print(f'No existe el directorio {BACKUP_DIR} — saltando')
+    exit(0)
+
 creds_dict = json.loads(CREDENTIALS_JSON)
 creds = service_account.Credentials.from_service_account_info(
     creds_dict,
@@ -34,16 +38,25 @@ folder_meta = {
 }
 folder = service.files().create(body=folder_meta, fields='id').execute()
 subfolder_id = folder['id']
-print(f'Carpeta creada en Drive: backup-{DATE} ({subfolder_id})')
+print(f'Carpeta creada en Drive: backup-{DATE}')
 
-# Subir todos los archivos del backup
+# Subir todos los archivos del backup (JSON + ZIP)
 archivos = glob.glob(f'{BACKUP_DIR}/*')
+if not archivos:
+    print('No hay archivos para subir')
+    exit(0)
+
 for path in archivos:
     name = os.path.basename(path)
-    mime = 'application/json' if name.endswith('.json') else 'application/zip'
+    if name.endswith('.json'):
+        mime = 'application/json'
+    elif name.endswith('.zip'):
+        mime = 'application/zip'
+    else:
+        continue
     file_meta = {'name': name, 'parents': [subfolder_id]}
     media = MediaFileUpload(path, mimetype=mime, resumable=True)
     f = service.files().create(body=file_meta, media_body=media, fields='id,name').execute()
-    print(f'  Subido: {name} ({f["id"]})')
+    print(f'  Subido: {name}')
 
-print(f'\nBackup subido a Google Drive correctamente.')
+print(f'\nBackup completo en Google Drive: backup-{DATE}')

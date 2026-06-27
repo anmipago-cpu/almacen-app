@@ -30,7 +30,7 @@ jobs:
           python-version: '3.11'
 
       - name: Instalar dependencias
-        run: pip install requests
+        run: pip install requests google-auth google-auth-httplib2 google-api-python-client
 
       - name: Exportar tablas de Supabase
         env:
@@ -71,3 +71,16 @@ jobs:
           git diff --cached --quiet || git commit -m "backup: $DATE"
           git push --force origin backups
 
+      - name: Crear ZIP del código fuente
+        run: |
+          DATE=$(TZ=America/Bogota date +%Y-%m-%d)
+          git checkout main
+          mkdir -p backup_output/$DATE
+          git archive --format=zip --output="backup_output/$DATE/codigo_almacen_${DATE}.zip" HEAD
+          echo "ZIP creado"
+
+      - name: Subir a Google Drive
+        env:
+          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
+          GDRIVE_FOLDER_ID:   ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: python scripts/upload_gdrive.py
