@@ -10,24 +10,46 @@ import { CATEGORIAS, SUBCATEGORIAS } from '../types';
 import * as XLSX from 'xlsx';
 import type { ConsumoSemanal } from '../types';
 
-interface ParsedRow {
-  code: string;
-  name: string;
-  cantidad: number;
+function getSemanaActual(): string {
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
+
+function isoWeekToRange(weekStr: string): { numero: number; año: number; label: string } {
+  const [yearStr, wStr] = weekStr.split('-W');
+  const year = parseInt(yearStr);
+  const week = parseInt(wStr);
+  const jan4 = new Date(year, 0, 4);
+  const dayOfWeek = jan4.getDay() || 7;
+  const mondayW1 = new Date(jan4.getTime() - (dayOfWeek - 1) * 86400000);
+  const inicio = new Date(mondayW1.getTime() + (week - 1) * 7 * 86400000);
+  const fin = new Date(inicio.getTime() + 6 * 86400000);
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const label = `Sem. ${week} · ${inicio.getDate()} ${meses[inicio.getMonth()]} - ${fin.getDate()} ${meses[fin.getMonth()]} ${year}`;
+  return { numero: week, año: year, label };
+}
+
+interface ParsedRow { code: string; name: string; cantidad: number; }
 
 export function ConsumoSemanal() {
   const { productos } = useProductos();
 
+  // ── Selector de semana ──────────────────────────────────────────────────
+  const [semana, setSemana] = useState(getSemanaActual());
+  const semanaInfo = semana ? isoWeekToRange(semana) : null;
+
   // ── Filtros buscador ────────────────────────────────────────────────────
-  const [busqueda, setBusqueda]         = useState('');
-  const [catFiltro, setCatFiltro]       = useState('');
-  const [subFiltro, setSubFiltro]       = useState('');
+  const [busqueda, setBusqueda] = useState('');
+  const [catFiltro, setCatFiltro] = useState('');
+  const [subFiltro, setSubFiltro] = useState('');
 
   const subcatsDisponibles = useMemo(() => {
-    const cat = catFiltro || '';
-    if (!cat) return [];
-    return Object.entries(SUBCATEGORIAS[cat] || {}).map(([key, label]) => ({ key: `${cat}:${key}`, label }));
+    if (!catFiltro) return [];
+    return Object.entries(SUBCATEGORIAS[catFiltro] || {}).map(([key, label]) => ({ key: `${catFiltro}:${key}`, label }));
   }, [catFiltro]);
 
   const productosFiltrados = useMemo(() => {
@@ -45,62 +67,55 @@ export function ConsumoSemanal() {
   const [warnings, setWarnings]   = useState<string[]>([]);
   const [summary, setSummary]     = useState<{ imports: number; warnings: number } | null>(null);
   const [loading, setLoading]     = useState(false);
-  const [weekLabel, setWeekLabel] = useState('');
 
-  async function parseCSV(text: string): Promise<{ rows: ParsedRow[]; weekNumber: number | null; year: number | null }> {
-    const lines = text.split(/\r?\n/).filter(line => line.trim());
-    if (lines.length < 2) throw new Error('El archivo debe contener cabecera y al menos una fila de datos.');
-
-    const headers = lines[0].split(',').map(h => h.trim());
-    const weekHeader = headers.find(h => /semana/i.test(h));
-    const weekNumber = weekHeader ? parseInt(weekHeader.replace(/[^0-9]/g, ''), 10) : NaN;
-    const rows = lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim());
-      return { code: values[0] || '', name: values[1] || '', cantidad: Number(values[2] ?? 0) };
-    });
-    return { rows, weekNumber: Number.isNaN(weekNumber) ? null : weekNumber, year: new Date().getFullYear() };
+  function parseRows(headers: string[], rawRows: string[][]): ParsedRow[] {
+    const h = headers.map(x => x.trim().toLowerCase());
+    const iCode = h.findIndex(x => ['codigo','código','code'].includes(x));
+    const iName = h.findIndex(x => ['nombre','name'].includes(x));
+    const iCant = h.findIndex(x => ['cantidad','qty','quantity'].includes(x));
+    return rawRows.map(values => ({
+      code:     String(values[iCode >= 0 ? iCode : 0] ?? '').trim(),
+      name:     String(values[iName >= 0 ? iName : 1] ?? '').trim(),
+      cantidad: Number(String(values[iCant >= 0 ? iCant : 2] ?? '0').replace(',', '.')),
+    }));
   }
 
-  async function parseXLSX(file: File) {
+  async function parseCSV(text: string): Promise<ParsedRow[]> {
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) throw new Error('El archivo debe tener cabecera y al menos una fila.');
+    const sep = lines[0].includes(';') ? ';' : ',';
+    const headers = lines[0].split(sep);
+    const rawRows = lines.slice(1).map(l => l.split(sep));
+    return parseRows(headers, rawRows);
+  }
+
+  async function parseXLSX(file: File): Promise<ParsedRow[]> {
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown[][];
-    if (raw.length < 2) throw new Error('El archivo debe contener cabecera y al menos una fila de datos.');
-
-    const headers = (raw[0] as string[]).map(h => String(h ?? '').trim());
-    const weekHeader = headers.find(h => /semana/i.test(h));
-    const weekNumber = weekHeader ? parseInt(weekHeader.replace(/[^0-9]/g, ''), 10) : NaN;
-    const rows = raw.slice(1).map((row) => {
-      const values = row as unknown[];
-      return {
-        code: String(values[0] ?? '').trim(),
-        name: String(values[1] ?? '').trim(),
-        cantidad: Number(values[2] ?? 0),
-      };
-    });
-    return { rows, weekNumber: Number.isNaN(weekNumber) ? null : weekNumber, year: new Date().getFullYear() };
+    if (raw.length < 2) throw new Error('El archivo debe tener cabecera y al menos una fila.');
+    const headers = (raw[0] as string[]).map(h => String(h ?? ''));
+    const rawRows = raw.slice(1).map(r => (r as unknown[]).map(v => String(v ?? '')));
+    return parseRows(headers, rawRows);
   }
 
   async function processFile(file: File) {
+    if (!semana) {
+      toast.error('Selecciona la semana antes de cargar el archivo.');
+      return;
+    }
     setSummary(null);
     setWarnings([]);
     setFileName(file.name);
     setLoading(true);
     try {
-      let parseResult;
-      if (file.name.toLowerCase().endsWith('.xlsx')) {
-        parseResult = await parseXLSX(file);
-      } else {
-        const text = await file.text();
-        parseResult = await parseCSV(text);
-      }
+      const rows = file.name.toLowerCase().endsWith('.xlsx')
+        ? await parseXLSX(file)
+        : await parseCSV(await file.text());
 
-      const semana = parseResult.weekNumber ?? parseInt(prompt('No se detectó el número de semana. Ingresa la semana manualmente:') || '', 10);
-      if (!semana || Number.isNaN(semana)) throw new Error('No se encontró un número de semana válido.');
-
-      setWeekLabel(`Semana ${semana}`);
-      const codes = parseResult.rows.map(row => row.code).filter(Boolean);
+      const info = isoWeekToRange(semana);
+      const codes = rows.map(r => r.code).filter(Boolean);
       const { data: existing, error: err } = await supabase.from('productos').select('code,name').in('code', codes);
       if (err) throw err;
 
@@ -110,28 +125,29 @@ export function ConsumoSemanal() {
       const missingCodes: string[] = [];
       const toInsert: Partial<ConsumoSemanal>[] = [];
 
-      parseResult.rows.forEach(row => {
-        if (!row.code || !row.name) return;
+      rows.forEach(row => {
+        if (!row.code) return;
         if (!existingMap.has(row.code)) { missingCodes.push(row.code); return; }
+        if (row.cantidad <= 0) return;
         toInsert.push({
-          semana_numero: semana,
-          año: new Date().getFullYear(),
+          semana_numero: info.numero,
+          año: info.año,
           producto_code: row.code,
-          producto_name: row.name,
+          producto_name: row.name || existingMap.get(row.code) || '',
           cantidad_consumida: row.cantidad,
           fuente: 'ARCHIVO',
         });
       });
 
-      if (toInsert.length === 0) throw new Error('No se encontraron registros válidos para importar.');
+      if (toInsert.length === 0) throw new Error('No se encontraron registros válidos (cantidad > 0) para importar.');
 
       const { error: insertError } = await supabase
         .from('consumos_semanales')
         .upsert(toInsert, { onConflict: 'semana_numero,año,producto_code' });
       if (insertError) throw insertError;
 
-      toast.success(`Importados ${toInsert.length} productos${missingCodes.length ? `, ${missingCodes.length} códigos no encontrados` : ''}.`);
-      setWarnings(missingCodes.map(code => `Código no encontrado: ${code}`));
+      toast.success(`${toInsert.length} productos importados para ${info.label}`);
+      setWarnings(missingCodes.map(code => `Código no encontrado en catálogo: ${code}`));
       setSummary({ imports: toInsert.length, warnings: missingCodes.length });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Fallo al procesar el archivo';
@@ -160,27 +176,24 @@ export function ConsumoSemanal() {
         </div>
       </div>
 
-      {/* ── Buscador de productos por categoría ── */}
+      {/* ── Buscador por categoría ── */}
       <Card className="mb-5">
         <div className="space-y-4">
           <h2 className="text-base font-semibold text-slate-800">Consultar productos por categoría</h2>
 
-          {/* Filtros de categoría */}
           <div className="flex flex-wrap gap-2">
             {Object.entries(CATEGORIAS).map(([code, cat]) => (
-              <button
-                key={code}
+              <button key={code}
                 onClick={() => { setCatFiltro(catFiltro === code ? '' : code); setSubFiltro(''); }}
                 className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
                   catFiltro === code
                     ? `${cat.bg} ${cat.text} ${cat.border} border`
                     : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
-                }`}
-              >
+                }`}>
                 {cat.label}
               </button>
             ))}
-            {catFiltro && (
+            {(catFiltro || busqueda) && (
               <button onClick={() => { setCatFiltro(''); setSubFiltro(''); setBusqueda(''); }}
                 className="rounded-full px-3 py-1 text-xs font-medium bg-slate-100 text-slate-500 hover:bg-slate-200">
                 Limpiar
@@ -188,37 +201,29 @@ export function ConsumoSemanal() {
             )}
           </div>
 
-          {/* Subcategorías */}
           {subcatsDisponibles.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {subcatsDisponibles.map(s => (
-                <button
-                  key={s.key}
+                <button key={s.key}
                   onClick={() => setSubFiltro(subFiltro === s.key ? '' : s.key)}
                   className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
                     subFiltro === s.key
                       ? 'bg-slate-700 text-white border-slate-700'
                       : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
-                  }`}
-                >
+                  }`}>
                   {s.label}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Búsqueda por texto */}
           <div className="relative">
             <Search size={14} className="absolute left-3 top-3 text-slate-400 pointer-events-none" />
-            <input
-              value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
+            <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
               placeholder="Buscar por nombre o código..."
-              className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+              className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
-          {/* Tabla de productos */}
           {(catFiltro || busqueda) && (
             <div className="overflow-auto max-h-72 rounded-xl border border-slate-200">
               <table className="w-full text-sm">
@@ -230,15 +235,15 @@ export function ConsumoSemanal() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {productosFiltrados.length === 0 ? (
-                    <tr><td colSpan={3} className="px-3 py-4 text-center text-slate-400">Sin resultados</td></tr>
-                  ) : productosFiltrados.map(p => (
-                    <tr key={p.code} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 font-mono text-xs text-slate-600">{p.code}</td>
-                      <td className="px-3 py-2 text-slate-800">{p.name}</td>
-                      <td className="px-3 py-2 text-slate-500 text-xs">{p.unit}</td>
-                    </tr>
-                  ))}
+                  {productosFiltrados.length === 0
+                    ? <tr><td colSpan={3} className="px-3 py-4 text-center text-slate-400">Sin resultados</td></tr>
+                    : productosFiltrados.map(p => (
+                      <tr key={p.code} className="hover:bg-slate-50">
+                        <td className="px-3 py-2 font-mono text-xs text-slate-600">{p.code}</td>
+                        <td className="px-3 py-2 text-slate-800">{p.name}</td>
+                        <td className="px-3 py-2 text-slate-500 text-xs">{p.unit}</td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
               <p className="px-3 py-2 text-xs text-slate-400 border-t border-slate-100">
@@ -252,29 +257,30 @@ export function ConsumoSemanal() {
       {/* ── Carga de archivo ── */}
       <Card>
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-[1.2fr_0.8fr]">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">Cargar consumo semanal</h2>
-              <p className="text-sm text-slate-500">Selecciona un archivo con las columnas Código, Nombre y Semana N.</p>
-            </div>
-            <div className="flex items-center justify-end">
-              <Button variant="secondary" icon={<UploadCloud size={16} />} onClick={() => document.getElementById('consumo-file')?.click()} loading={loading}>
-                Seleccionar archivo
-              </Button>
-            </div>
+          <h2 className="text-lg font-semibold text-slate-900">Cargar consumo semanal</h2>
+
+          {/* Selector de semana */}
+          <div>
+            <label className="text-sm font-medium text-slate-700">Semana <span className="text-red-500">*</span></label>
+            <input type="week" value={semana} onChange={e => { setSemana(e.target.value); setSummary(null); setWarnings([]); setFileName(''); }}
+              className="mt-1 block rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            {semanaInfo && (
+              <p className="mt-1 text-xs text-slate-500">{semanaInfo.label}</p>
+            )}
+          </div>
+
+          {/* Botón subir */}
+          <div className="flex items-center gap-4">
+            <Button variant="secondary" icon={<UploadCloud size={16} />}
+              onClick={() => document.getElementById('consumo-file')?.click()} loading={loading}>
+              Seleccionar archivo CSV / Excel
+            </Button>
+            {fileName && <span className="text-sm text-slate-500 truncate">{fileName}</span>}
           </div>
 
           <input id="consumo-file" type="file" accept=".csv,.xlsx"
-            onChange={e => { const file = e.target.files?.[0]; if (file) processFile(file); }}
+            onChange={e => { const file = e.target.files?.[0]; if (file) processFile(file); e.target.value = ''; }}
             className="hidden" />
-
-          {fileName && (
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <p className="font-medium text-slate-900">Archivo seleccionado</p>
-              <p>{fileName}</p>
-              {weekLabel && <p className="mt-1 text-slate-500">{weekLabel}</p>}
-            </div>
-          )}
 
           {summary && (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -298,10 +304,18 @@ export function ConsumoSemanal() {
             </div>
           )}
 
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-            <p className="font-semibold text-slate-900">Formato aceptado</p>
-            <p className="mt-2">Columna A: Código, Columna B: Nombre, Columna C: Semana N.</p>
-            <p>Ejemplo de cabecera: <span className="font-mono">Código, Nombre, Semana 12</span></p>
+          {/* Formato */}
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 space-y-2">
+            <p className="font-semibold text-slate-900">Formato del archivo</p>
+            <p className="font-mono text-xs bg-white border border-slate-200 rounded-lg px-3 py-2">
+              codigo, nombre, cantidad
+            </p>
+            <ul className="space-y-1 text-xs list-disc pl-4">
+              <li><strong>codigo</strong>: código exacto del catálogo (ej: SP-02-001)</li>
+              <li><strong>nombre</strong>: nombre del producto (referencia, puede quedar vacío)</li>
+              <li><strong>cantidad</strong>: cantidad consumida — filas con 0 se omiten</li>
+            </ul>
+            <p className="text-xs text-slate-400">La semana se toma del selector de arriba, no del archivo.</p>
           </div>
         </div>
       </Card>
