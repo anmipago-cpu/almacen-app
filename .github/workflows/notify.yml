@@ -2,7 +2,7 @@ name: Notificaciones de Alarmas
 
 on:
   schedule:
-    - cron: '0 13 * * *'   # 8:00 AM Colombia (UTC-5) todos los días
+    - cron: '*/30 * * * *'  # Cada 30 minutos — detecta cambios de estado
   workflow_dispatch:
 
 jobs:
