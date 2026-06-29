@@ -555,6 +555,25 @@ export function ConsumoSemanal() {
               <span className="text-xs text-slate-400 pb-1">
                 {loadingDetalle ? '...' : `${detallesFiltrados.length} productos`}
               </span>
+              {registrosDetalle.length > 0 && (
+                <button
+                  onClick={async () => {
+                    if (!semanaInfo) return;
+                    if (!confirm(`¿Eliminar todos los ${registrosDetalle.length} registros de ${semanaInfo.label}?`)) return;
+                    const { error } = await supabase
+                      .from('consumos_semanales')
+                      .delete()
+                      .eq('semana_numero', semanaInfo.numero)
+                      .eq('año', semanaInfo.año);
+                    if (error) { toast.error('Error al eliminar.'); return; }
+                    setRegistrosDetalle([]);
+                    toast.success(`Semana ${semanaInfo.label} eliminada.`);
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition"
+                >
+                  <Trash2 size={12} /> Eliminar semana completa
+                </button>
+              )}
             </div>
 
             {loadingDetalle ? (
