@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { UploadCloud, AlertTriangle, Search } from 'lucide-react';
+import { UploadCloud, AlertTriangle, Search, CheckCircle2, Trash2 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -35,12 +35,46 @@ function isoWeekToRange(weekStr: string): { numero: number; año: number; label:
 
 interface ParsedRow { code: string; name: string; cantidad: number; }
 
+interface RegistroCargado {
+  id: string;
+  producto_code: string;
+  producto_name: string;
+  cantidad_consumida: number;
+}
+
 export function ConsumoSemanal() {
   const { productos } = useProductos();
 
   // ── Selector de semana ──────────────────────────────────────────────────
   const [semana, setSemana] = useState(getSemanaActual());
   const semanaInfo = semana ? isoWeekToRange(semana) : null;
+
+  // ── Registros ya cargados para la semana seleccionada ──────────────────
+  const [registrosCargados, setRegistrosCargados] = useState<RegistroCargado[]>([]);
+  const [loadingRegistros, setLoadingRegistros]   = useState(false);
+
+  const cargarRegistros = useCallback(async (semStr: string) => {
+    if (!semStr) return;
+    const info = isoWeekToRange(semStr);
+    setLoadingRegistros(true);
+    const { data } = await supabase
+      .from('consumos_semanales')
+      .select('id,producto_code,producto_name,cantidad_consumida')
+      .eq('semana_numero', info.numero)
+      .eq('año', info.año)
+      .order('producto_name');
+    setRegistrosCargados((data ?? []) as RegistroCargado[]);
+    setLoadingRegistros(false);
+  }, []);
+
+  useEffect(() => { cargarRegistros(semana); }, [semana, cargarRegistros]);
+
+  async function eliminarRegistro(id: string) {
+    const { error } = await supabase.from('consumos_semanales').delete().eq('id', id);
+    if (error) { toast.error('No se pudo eliminar.'); return; }
+    setRegistrosCargados(prev => prev.filter(r => r.id !== id));
+    toast.success('Registro eliminado.');
+  }
 
   // ── Filtros buscador ────────────────────────────────────────────────────
   const [busqueda, setBusqueda] = useState('');
@@ -149,6 +183,7 @@ export function ConsumoSemanal() {
       toast.success(`${toInsert.length} productos importados para ${info.label}`);
       setWarnings(missingCodes.map(code => `Código no encontrado en catálogo: ${code}`));
       setSummary({ imports: toInsert.length, warnings: missingCodes.length });
+      await cargarRegistros(semana);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Fallo al procesar el archivo';
       toast.error(message);
@@ -318,6 +353,60 @@ export function ConsumoSemanal() {
             <p className="text-xs text-slate-400">La semana se toma del selector de arriba, no del archivo.</p>
           </div>
         </div>
+      </Card>
+
+      {/* ── Registros cargados para la semana ── */}
+      <Card className="mt-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={18} className="text-emerald-500" />
+            <h2 className="text-base font-semibold text-slate-800">
+              Registros cargados{semanaInfo ? ` · ${semanaInfo.label}` : ''}
+            </h2>
+          </div>
+          <span className="text-xs text-slate-400">
+            {loadingRegistros ? 'Cargando...' : `${registrosCargados.length} producto${registrosCargados.length !== 1 ? 's' : ''}`}
+          </span>
+        </div>
+
+        {loadingRegistros ? (
+          <p className="py-6 text-center text-sm text-slate-400">Cargando...</p>
+        ) : registrosCargados.length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-400">
+            No hay registros cargados para esta semana.
+          </p>
+        ) : (
+          <div className="overflow-auto max-h-96 rounded-xl border border-slate-200">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 sticky top-0">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 w-28">Código</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Producto</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 w-28">Cantidad</th>
+                  <th className="px-3 py-2 w-10"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {registrosCargados.map(r => (
+                  <tr key={r.id} className="hover:bg-slate-50">
+                    <td className="px-3 py-2 font-mono text-xs text-slate-600">{r.producto_code}</td>
+                    <td className="px-3 py-2 text-slate-800">{r.producto_name}</td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-700">{r.cantidad_consumida.toLocaleString('es-CO')}</td>
+                    <td className="px-3 py-2">
+                      <button
+                        onClick={() => eliminarRegistro(r.id)}
+                        title="Eliminar registro"
+                        className="rounded-lg p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 transition"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   );
