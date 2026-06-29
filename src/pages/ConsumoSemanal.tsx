@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { UploadCloud, AlertTriangle, Search, CheckCircle2, Trash2 } from 'lucide-react';
+import { UploadCloud, AlertTriangle, Search, Trash2 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -8,7 +8,9 @@ import { supabase } from '../lib/supabase';
 import { useProductos } from '../hooks/useProductos';
 import { CATEGORIAS, SUBCATEGORIAS } from '../types';
 import * as XLSX from 'xlsx';
-import type { ConsumoSemanal } from '../types';
+import type { ConsumoSemanal as ConsumoSemanalType } from '../types';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function getSemanaActual(): string {
   const now = new Date();
@@ -19,7 +21,7 @@ function getSemanaActual(): string {
   return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
-function isoWeekToRange(weekStr: string): { numero: number; año: number; label: string } {
+function isoWeekToRange(weekStr: string): { numero: number; año: number; label: string; labelCorto: string } {
   const [yearStr, wStr] = weekStr.split('-W');
   const year = parseInt(yearStr);
   const week = parseInt(wStr);
@@ -30,54 +32,30 @@ function isoWeekToRange(weekStr: string): { numero: number; año: number; label:
   const fin = new Date(inicio.getTime() + 6 * 86400000);
   const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const label = `Sem. ${week} · ${inicio.getDate()} ${meses[inicio.getMonth()]} - ${fin.getDate()} ${meses[fin.getMonth()]} ${year}`;
-  return { numero: week, año: year, label };
+  const labelCorto = `S${week}/${String(year).slice(2)}`;
+  return { numero: week, año: year, label, labelCorto };
 }
+
+function semanaKey(numero: number, año: number) { return `${año}-W${String(numero).padStart(2, '0')}`; }
+
+// ── Tipos ─────────────────────────────────────────────────────────────────────
 
 interface ParsedRow { code: string; name: string; cantidad: number; }
+interface RegistroCS { id: string; producto_code: string; producto_name: string; cantidad_consumida: number; semana_numero: number; año: number; }
 
-interface RegistroCargado {
-  id: string;
-  producto_code: string;
-  producto_name: string;
-  cantidad_consumida: number;
-}
+// ── Componente ────────────────────────────────────────────────────────────────
 
 export function ConsumoSemanal() {
   const { productos } = useProductos();
 
-  // ── Selector de semana ──────────────────────────────────────────────────
+  const [tab, setTab] = useState<'cargar' | 'detalle' | 'acumulado'>('cargar');
+
+  // ── Semana activa (carga + detalle) ──
   const [semana, setSemana] = useState(getSemanaActual());
   const semanaInfo = semana ? isoWeekToRange(semana) : null;
 
-  // ── Registros ya cargados para la semana seleccionada ──────────────────
-  const [registrosCargados, setRegistrosCargados] = useState<RegistroCargado[]>([]);
-  const [loadingRegistros, setLoadingRegistros]   = useState(false);
-
-  const cargarRegistros = useCallback(async (semStr: string) => {
-    if (!semStr) return;
-    const info = isoWeekToRange(semStr);
-    setLoadingRegistros(true);
-    const { data } = await supabase
-      .from('consumos_semanales')
-      .select('id,producto_code,producto_name,cantidad_consumida')
-      .eq('semana_numero', info.numero)
-      .eq('año', info.año)
-      .order('producto_name');
-    setRegistrosCargados((data ?? []) as RegistroCargado[]);
-    setLoadingRegistros(false);
-  }, []);
-
-  useEffect(() => { cargarRegistros(semana); }, [semana, cargarRegistros]);
-
-  async function eliminarRegistro(id: string) {
-    const { error } = await supabase.from('consumos_semanales').delete().eq('id', id);
-    if (error) { toast.error('No se pudo eliminar.'); return; }
-    setRegistrosCargados(prev => prev.filter(r => r.id !== id));
-    toast.success('Registro eliminado.');
-  }
-
-  // ── Filtros buscador ────────────────────────────────────────────────────
-  const [busqueda, setBusqueda] = useState('');
+  // ── Filtros buscador (en tab cargar) ──
+  const [busqueda, setBusqueda]   = useState('');
   const [catFiltro, setCatFiltro] = useState('');
   const [subFiltro, setSubFiltro] = useState('');
 
@@ -96,11 +74,121 @@ export function ConsumoSemanal() {
     });
   }, [productos, catFiltro, subFiltro, busqueda]);
 
-  // ── Upload ──────────────────────────────────────────────────────────────
-  const [fileName, setFileName]   = useState('');
-  const [warnings, setWarnings]   = useState<string[]>([]);
-  const [summary, setSummary]     = useState<{ imports: number; warnings: number } | null>(null);
-  const [loading, setLoading]     = useState(false);
+  // ── Upload ──
+  const [fileName, setFileName] = useState('');
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [summary, setSummary]   = useState<{ imports: number; warnings: number } | null>(null);
+  const [loading, setLoading]   = useState(false);
+
+  // ── Registros tab Detalle ──
+  const [registrosDetalle, setRegistrosDetalle]     = useState<RegistroCS[]>([]);
+  const [loadingDetalle, setLoadingDetalle]         = useState(false);
+  const [busquedaDetalle, setBusquedaDetalle]       = useState('');
+
+  const cargarDetalle = useCallback(async (semStr: string) => {
+    if (!semStr) return;
+    const info = isoWeekToRange(semStr);
+    setLoadingDetalle(true);
+    const { data } = await supabase
+      .from('consumos_semanales')
+      .select('id,producto_code,producto_name,cantidad_consumida,semana_numero,año')
+      .eq('semana_numero', info.numero)
+      .eq('año', info.año)
+      .order('producto_name');
+    setRegistrosDetalle((data ?? []) as RegistroCS[]);
+    setLoadingDetalle(false);
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'detalle') cargarDetalle(semana);
+  }, [tab, semana, cargarDetalle]);
+
+  const detallesFiltrados = useMemo(() => {
+    const q = busquedaDetalle.trim().toLowerCase();
+    if (!q) return registrosDetalle;
+    return registrosDetalle.filter(r =>
+      r.producto_code.toLowerCase().includes(q) || r.producto_name.toLowerCase().includes(q)
+    );
+  }, [registrosDetalle, busquedaDetalle]);
+
+  async function eliminarRegistro(id: string) {
+    const { error } = await supabase.from('consumos_semanales').delete().eq('id', id);
+    if (error) { toast.error('No se pudo eliminar.'); return; }
+    setRegistrosDetalle(prev => prev.filter(r => r.id !== id));
+    toast.success('Registro eliminado.');
+  }
+
+  // ── Acumulado ──
+  const [semanasDisponibles, setSemanasDisponibles]   = useState<{ numero: number; año: number }[]>([]);
+  const [semanasSelec, setSemanasSelec]               = useState<Set<string>>(new Set());
+  const [todosAcumulado, setTodosAcumulado]           = useState<RegistroCS[]>([]);
+  const [loadingAcumulado, setLoadingAcumulado]       = useState(false);
+  const [busquedaAcum, setBusquedaAcum]               = useState('');
+
+  const cargarAcumulado = useCallback(async () => {
+    setLoadingAcumulado(true);
+    const { data: semanas } = await supabase
+      .from('consumos_semanales')
+      .select('semana_numero,año')
+      .order('año', { ascending: false })
+      .order('semana_numero', { ascending: false });
+
+    const unicas = Array.from(
+      new Map((semanas ?? []).map(s => [`${s.año}-${s.semana_numero}`, s])).values()
+    );
+    setSemanasDisponibles(unicas);
+    if (unicas.length > 0 && semanasSelec.size === 0) {
+      setSemanasSelec(new Set(unicas.slice(0, Math.min(5, unicas.length)).map(s => semanaKey(s.numero, s.año))));
+    }
+
+    const { data: todos } = await supabase
+      .from('consumos_semanales')
+      .select('id,producto_code,producto_name,cantidad_consumida,semana_numero,año');
+    setTodosAcumulado((todos ?? []) as RegistroCS[]);
+    setLoadingAcumulado(false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (tab === 'acumulado') cargarAcumulado();
+  }, [tab, cargarAcumulado]);
+
+  const semanasOrdenadas = useMemo(() =>
+    [...semanasDisponibles]
+      .sort((a, b) => a.año !== b.año ? a.año - b.año : a.numero - b.numero)
+      .filter(s => semanasSelec.has(semanaKey(s.numero, s.año))),
+    [semanasDisponibles, semanasSelec]
+  );
+
+  const tablaAcumulada = useMemo(() => {
+    if (semanasOrdenadas.length === 0) return [];
+    const q = busquedaAcum.trim().toLowerCase();
+
+    const byCode = new Map<string, { name: string; por_semana: Map<string, number> }>();
+    todosAcumulado.forEach(r => {
+      const key = semanaKey(r.semana_numero, r.año);
+      if (!semanasSelec.has(key)) return;
+      if (!byCode.has(r.producto_code)) {
+        byCode.set(r.producto_code, { name: r.producto_name, por_semana: new Map() });
+      }
+      byCode.get(r.producto_code)!.por_semana.set(key, r.cantidad_consumida);
+    });
+
+    return [...byCode.entries()]
+      .filter(([code, { name }]) =>
+        !q || code.toLowerCase().includes(q) || name.toLowerCase().includes(q)
+      )
+      .map(([code, { name, por_semana }]) => {
+        const valores = semanasOrdenadas.map(s => por_semana.get(semanaKey(s.numero, s.año)) ?? 0);
+        const conDato = valores.filter(v => v > 0);
+        const promedio = conDato.length > 0
+          ? Math.round((conDato.reduce((a, b) => a + b, 0) / conDato.length) * 100) / 100
+          : 0;
+        return { code, name, valores, promedio };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [todosAcumulado, semanasOrdenadas, semanasSelec, busquedaAcum]);
+
+  // ── Parsers ──────────────────────────────────────────────────────────────
 
   function parseRows(headers: string[], rawRows: string[][]): ParsedRow[] {
     const h = headers.map(x => x.trim().toLowerCase());
@@ -135,64 +223,50 @@ export function ConsumoSemanal() {
   }
 
   async function processFile(file: File) {
-    if (!semana) {
-      toast.error('Selecciona la semana antes de cargar el archivo.');
-      return;
-    }
-    setSummary(null);
-    setWarnings([]);
-    setFileName(file.name);
-    setLoading(true);
+    if (!semana) { toast.error('Selecciona la semana antes de cargar el archivo.'); return; }
+    setSummary(null); setWarnings([]); setFileName(file.name); setLoading(true);
     try {
       const rows = file.name.toLowerCase().endsWith('.xlsx')
         ? await parseXLSX(file)
         : await parseCSV(await file.text());
-
       const info = isoWeekToRange(semana);
       const codes = rows.map(r => r.code).filter(Boolean);
       const { data: existing, error: err } = await supabase.from('productos').select('code,name').in('code', codes);
       if (err) throw err;
-
       const existingMap = new Map<string, string>();
       (existing || []).forEach(item => { if (item.code) existingMap.set(item.code, item.name ?? ''); });
-
       const missingCodes: string[] = [];
-      const toInsert: Partial<ConsumoSemanal>[] = [];
-
+      const toInsert: Partial<ConsumoSemanalType>[] = [];
       rows.forEach(row => {
         if (!row.code) return;
         if (!existingMap.has(row.code)) { missingCodes.push(row.code); return; }
         if (row.cantidad <= 0) return;
         toInsert.push({
-          semana_numero: info.numero,
-          año: info.año,
-          producto_code: row.code,
-          producto_name: row.name || existingMap.get(row.code) || '',
+          semana_numero:     info.numero,
+          año:               info.año,
+          producto_code:     row.code,
+          producto_name:     row.name || existingMap.get(row.code) || '',
           cantidad_consumida: row.cantidad,
-          fuente: 'ARCHIVO',
+          fuente:            'ARCHIVO',
         });
       });
-
       if (toInsert.length === 0) throw new Error('No se encontraron registros válidos (cantidad > 0) para importar.');
-
       const { error: insertError } = await supabase
         .from('consumos_semanales')
         .upsert(toInsert, { onConflict: 'semana_numero,año,producto_code' });
       if (insertError) throw insertError;
-
       toast.success(`${toInsert.length} productos importados para ${info.label}`);
       setWarnings(missingCodes.map(code => `Código no encontrado en catálogo: ${code}`));
       setSummary({ imports: toInsert.length, warnings: missingCodes.length });
-      await cargarRegistros(semana);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Fallo al procesar el archivo';
-      toast.error(message);
-      setWarnings([message]);
+      toast.error(message); setWarnings([message]);
     } finally {
       setLoading(false);
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div>
       <Header
@@ -211,203 +285,319 @@ export function ConsumoSemanal() {
         </div>
       </div>
 
-      {/* ── Buscador por categoría ── */}
-      <Card className="mb-5">
-        <div className="space-y-4">
-          <h2 className="text-base font-semibold text-slate-800">Consultar productos por categoría</h2>
+      {/* Tabs */}
+      <div className="flex gap-1 mb-5 border-b border-slate-200">
+        {([
+          { id: 'cargar',    label: 'Cargar archivo' },
+          { id: 'detalle',   label: 'Detalle por semana' },
+          { id: 'acumulado', label: 'Acumulado / Promedio' },
+        ] as const).map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              tab === t.id
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(CATEGORIAS).map(([code, cat]) => (
-              <button key={code}
-                onClick={() => { setCatFiltro(catFiltro === code ? '' : code); setSubFiltro(''); }}
-                className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
-                  catFiltro === code
-                    ? `${cat.bg} ${cat.text} ${cat.border} border`
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
-                }`}>
-                {cat.label}
-              </button>
-            ))}
-            {(catFiltro || busqueda) && (
-              <button onClick={() => { setCatFiltro(''); setSubFiltro(''); setBusqueda(''); }}
-                className="rounded-full px-3 py-1 text-xs font-medium bg-slate-100 text-slate-500 hover:bg-slate-200">
-                Limpiar
-              </button>
-            )}
-          </div>
-
-          {subcatsDisponibles.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {subcatsDisponibles.map(s => (
-                <button key={s.key}
-                  onClick={() => setSubFiltro(subFiltro === s.key ? '' : s.key)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
-                    subFiltro === s.key
-                      ? 'bg-slate-700 text-white border-slate-700'
-                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
-                  }`}>
-                  {s.label}
-                </button>
-              ))}
+      {/* ══ TAB: CARGAR ══════════════════════════════════════════════════════ */}
+      {tab === 'cargar' && (
+        <>
+          {/* Buscador por categoría */}
+          <Card className="mb-5">
+            <div className="space-y-4">
+              <h2 className="text-base font-semibold text-slate-800">Consultar productos por categoría</h2>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(CATEGORIAS).map(([code, cat]) => (
+                  <button key={code}
+                    onClick={() => { setCatFiltro(catFiltro === code ? '' : code); setSubFiltro(''); }}
+                    className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                      catFiltro === code
+                        ? `${cat.bg} ${cat.text} ${cat.border} border`
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
+                    }`}>
+                    {cat.label}
+                  </button>
+                ))}
+                {(catFiltro || busqueda) && (
+                  <button onClick={() => { setCatFiltro(''); setSubFiltro(''); setBusqueda(''); }}
+                    className="rounded-full px-3 py-1 text-xs font-medium bg-slate-100 text-slate-500 hover:bg-slate-200">
+                    Limpiar
+                  </button>
+                )}
+              </div>
+              {subcatsDisponibles.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {subcatsDisponibles.map(s => (
+                    <button key={s.key} onClick={() => setSubFiltro(subFiltro === s.key ? '' : s.key)}
+                      className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                        subFiltro === s.key ? 'bg-slate-700 text-white border-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
+                      }`}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-3 text-slate-400 pointer-events-none" />
+                <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
+                  placeholder="Buscar por nombre o código..."
+                  className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              {(catFiltro || busqueda) && (
+                <div className="overflow-auto max-h-72 rounded-xl border border-slate-200">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 w-28">Código</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Nombre</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 w-24">Unidad</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {productosFiltrados.length === 0
+                        ? <tr><td colSpan={3} className="px-3 py-4 text-center text-slate-400">Sin resultados</td></tr>
+                        : productosFiltrados.map(p => (
+                          <tr key={p.code} className="hover:bg-slate-50">
+                            <td className="px-3 py-2 font-mono text-xs text-slate-600">{p.code}</td>
+                            <td className="px-3 py-2 text-slate-800">{p.name}</td>
+                            <td className="px-3 py-2 text-slate-500 text-xs">{p.unit}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                  <p className="px-3 py-2 text-xs text-slate-400 border-t border-slate-100">
+                    {productosFiltrados.length} producto{productosFiltrados.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
+          </Card>
 
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-3 text-slate-400 pointer-events-none" />
-            <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
-              placeholder="Buscar por nombre o código..."
-              className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
+          {/* Carga */}
+          <Card>
+            <div className="space-y-6">
+              <h2 className="text-lg font-semibold text-slate-900">Cargar consumo semanal</h2>
+              <div>
+                <label className="text-sm font-medium text-slate-700">Semana <span className="text-red-500">*</span></label>
+                <input type="week" value={semana}
+                  onChange={e => { setSemana(e.target.value); setSummary(null); setWarnings([]); setFileName(''); }}
+                  className="mt-1 block rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                {semanaInfo && <p className="mt-1 text-xs text-slate-500">{semanaInfo.label}</p>}
+              </div>
+              <div className="flex items-center gap-4">
+                <Button variant="secondary" icon={<UploadCloud size={16} />}
+                  onClick={() => document.getElementById('consumo-file')?.click()} loading={loading}>
+                  Seleccionar archivo CSV / Excel
+                </Button>
+                {fileName && <span className="text-sm text-slate-500 truncate">{fileName}</span>}
+              </div>
+              <input id="consumo-file" type="file" accept=".csv,.xlsx"
+                onChange={e => { const file = e.target.files?.[0]; if (file) processFile(file); e.target.value = ''; }}
+                className="hidden" />
+              {summary && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p className="text-sm text-slate-500">Productos registrados</p>
+                    <p className="mt-2 text-3xl font-bold text-slate-900">{summary.imports}</p>
+                  </div>
+                  <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p className="text-sm text-slate-500">Advertencias</p>
+                    <p className="mt-2 text-3xl font-bold text-slate-900">{summary.warnings}</p>
+                  </div>
+                </div>
+              )}
+              {warnings.length > 0 && (
+                <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  <div className="flex items-center gap-2 font-semibold"><AlertTriangle size={18} /> Advertencias</div>
+                  <ul className="mt-3 list-disc space-y-1 pl-5">
+                    {warnings.map((w, i) => <li key={i}>{w}</li>)}
+                  </ul>
+                </div>
+              )}
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 space-y-2">
+                <p className="font-semibold text-slate-900">Formato del archivo</p>
+                <p className="font-mono text-xs bg-white border border-slate-200 rounded-lg px-3 py-2">codigo, nombre, cantidad</p>
+                <ul className="space-y-1 text-xs list-disc pl-4">
+                  <li><strong>codigo</strong>: código exacto del catálogo (ej: SP-02-001)</li>
+                  <li><strong>nombre</strong>: nombre del producto (referencia, puede quedar vacío)</li>
+                  <li><strong>cantidad</strong>: cantidad consumida — filas con 0 se omiten</li>
+                </ul>
+                <p className="text-xs text-slate-400">La semana se toma del selector de arriba, no del archivo.</p>
+              </div>
+            </div>
+          </Card>
+        </>
+      )}
 
-          {(catFiltro || busqueda) && (
-            <div className="overflow-auto max-h-72 rounded-xl border border-slate-200">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 sticky top-0">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 w-28">Código</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Nombre</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 w-24">Unidad</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {productosFiltrados.length === 0
-                    ? <tr><td colSpan={3} className="px-3 py-4 text-center text-slate-400">Sin resultados</td></tr>
-                    : productosFiltrados.map(p => (
-                      <tr key={p.code} className="hover:bg-slate-50">
-                        <td className="px-3 py-2 font-mono text-xs text-slate-600">{p.code}</td>
-                        <td className="px-3 py-2 text-slate-800">{p.name}</td>
-                        <td className="px-3 py-2 text-slate-500 text-xs">{p.unit}</td>
+      {/* ══ TAB: DETALLE ════════════════════════════════════════════════════ */}
+      {tab === 'detalle' && (
+        <Card>
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-end gap-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700">Semana</label>
+                <input type="week" value={semana}
+                  onChange={e => { setSemana(e.target.value); setBusquedaDetalle(''); }}
+                  className="mt-1 block rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                {semanaInfo && <p className="mt-1 text-xs text-slate-500">{semanaInfo.label}</p>}
+              </div>
+              <div className="relative flex-1 min-w-[200px]">
+                <Search size={14} className="absolute left-3 top-3 text-slate-400 pointer-events-none" />
+                <input value={busquedaDetalle} onChange={e => setBusquedaDetalle(e.target.value)}
+                  placeholder="Buscar por código o nombre..."
+                  className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <span className="text-xs text-slate-400 pb-1">
+                {loadingDetalle ? '...' : `${detallesFiltrados.length} productos`}
+              </span>
+            </div>
+
+            {loadingDetalle ? (
+              <p className="py-8 text-center text-slate-400">Cargando...</p>
+            ) : detallesFiltrados.length === 0 ? (
+              <p className="py-8 text-center text-slate-400">No hay registros cargados para esta semana.</p>
+            ) : (
+              <div className="overflow-auto max-h-[60vh] rounded-xl border border-slate-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 w-28">Código</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Producto</th>
+                      <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 w-28">Cantidad</th>
+                      <th className="px-3 py-2 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {detallesFiltrados.map(r => (
+                      <tr key={r.id} className="hover:bg-slate-50">
+                        <td className="px-3 py-2 font-mono text-xs text-slate-600">{r.producto_code}</td>
+                        <td className="px-3 py-2 text-slate-800">{r.producto_name}</td>
+                        <td className="px-3 py-2 text-right font-mono text-slate-700">{r.cantidad_consumida.toLocaleString('es-CO')}</td>
+                        <td className="px-3 py-2">
+                          <button onClick={() => eliminarRegistro(r.id)} title="Eliminar"
+                            className="rounded-lg p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 transition">
+                            <Trash2 size={13} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
-                </tbody>
-              </table>
-              <p className="px-3 py-2 text-xs text-slate-400 border-t border-slate-100">
-                {productosFiltrados.length} producto{productosFiltrados.length !== 1 ? 's' : ''}
-              </p>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* ── Carga de archivo ── */}
-      <Card>
-        <div className="space-y-6">
-          <h2 className="text-lg font-semibold text-slate-900">Cargar consumo semanal</h2>
-
-          {/* Selector de semana */}
-          <div>
-            <label className="text-sm font-medium text-slate-700">Semana <span className="text-red-500">*</span></label>
-            <input type="week" value={semana} onChange={e => { setSemana(e.target.value); setSummary(null); setWarnings([]); setFileName(''); }}
-              className="mt-1 block rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            {semanaInfo && (
-              <p className="mt-1 text-xs text-slate-500">{semanaInfo.label}</p>
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
+        </Card>
+      )}
 
-          {/* Botón subir */}
-          <div className="flex items-center gap-4">
-            <Button variant="secondary" icon={<UploadCloud size={16} />}
-              onClick={() => document.getElementById('consumo-file')?.click()} loading={loading}>
-              Seleccionar archivo CSV / Excel
-            </Button>
-            {fileName && <span className="text-sm text-slate-500 truncate">{fileName}</span>}
-          </div>
-
-          <input id="consumo-file" type="file" accept=".csv,.xlsx"
-            onChange={e => { const file = e.target.files?.[0]; if (file) processFile(file); e.target.value = ''; }}
-            className="hidden" />
-
-          {summary && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-sm text-slate-500">Productos registrados</p>
-                <p className="mt-2 text-3xl font-bold text-slate-900">{summary.imports}</p>
+      {/* ══ TAB: ACUMULADO ══════════════════════════════════════════════════ */}
+      {tab === 'acumulado' && (
+        <div className="space-y-4">
+          {/* Selector de semanas */}
+          <Card>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-800">Semanas a incluir</h2>
+                <div className="flex gap-2">
+                  <button onClick={() => setSemanasSelec(new Set(semanasDisponibles.map(s => semanaKey(s.numero, s.año))))}
+                    className="text-xs text-blue-600 hover:underline">Todas</button>
+                  <span className="text-slate-300">|</span>
+                  <button onClick={() => setSemanasSelec(new Set())}
+                    className="text-xs text-slate-500 hover:underline">Ninguna</button>
+                </div>
               </div>
-              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-sm text-slate-500">Advertencias</p>
-                <p className="mt-2 text-3xl font-bold text-slate-900">{summary.warnings}</p>
+              {loadingAcumulado ? (
+                <p className="text-sm text-slate-400">Cargando semanas...</p>
+              ) : semanasDisponibles.length === 0 ? (
+                <p className="text-sm text-slate-400">No hay semanas cargadas aún.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {[...semanasDisponibles]
+                    .sort((a, b) => a.año !== b.año ? a.año - b.año : a.numero - b.numero)
+                    .map(s => {
+                      const key = semanaKey(s.numero, s.año);
+                      const info = isoWeekToRange(key);
+                      const sel = semanasSelec.has(key);
+                      return (
+                        <button key={key}
+                          onClick={() => {
+                            const next = new Set(semanasSelec);
+                            sel ? next.delete(key) : next.add(key);
+                            setSemanasSelec(next);
+                          }}
+                          title={info.label}
+                          className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                            sel ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-slate-300 text-slate-600 hover:border-blue-400'
+                          }`}>
+                          {info.labelCorto}
+                        </button>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Tabla acumulada */}
+          <Card>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="relative flex-1">
+                  <Search size={14} className="absolute left-3 top-3 text-slate-400 pointer-events-none" />
+                  <input value={busquedaAcum} onChange={e => setBusquedaAcum(e.target.value)}
+                    placeholder="Buscar por código o nombre..."
+                    className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <span className="text-xs text-slate-400 whitespace-nowrap">{tablaAcumulada.length} productos</span>
               </div>
+
+              {semanasOrdenadas.length === 0 ? (
+                <p className="py-8 text-center text-slate-400">Selecciona al menos una semana para ver el acumulado.</p>
+              ) : tablaAcumulada.length === 0 ? (
+                <p className="py-8 text-center text-slate-400">Sin datos para las semanas seleccionadas.</p>
+              ) : (
+                <div className="overflow-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 w-28 whitespace-nowrap">Código</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Producto</th>
+                        {semanasOrdenadas.map(s => (
+                          <th key={semanaKey(s.numero, s.año)}
+                            className="px-3 py-2 text-right text-xs font-semibold text-slate-500 whitespace-nowrap"
+                            title={isoWeekToRange(semanaKey(s.numero, s.año)).label}>
+                            {isoWeekToRange(semanaKey(s.numero, s.año)).labelCorto}
+                          </th>
+                        ))}
+                        <th className="px-3 py-2 text-right text-xs font-semibold text-blue-600 whitespace-nowrap bg-blue-50">Promedio</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {tablaAcumulada.map((row, i) => (
+                        <tr key={row.code} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                          <td className="px-3 py-2 font-mono text-xs text-slate-600">{row.code}</td>
+                          <td className="px-3 py-2 text-slate-800">{row.name}</td>
+                          {row.valores.map((v, j) => (
+                            <td key={j} className={`px-3 py-2 text-right font-mono text-xs ${v === 0 ? 'text-slate-300' : 'text-slate-700'}`}>
+                              {v === 0 ? '—' : v.toLocaleString('es-CO')}
+                            </td>
+                          ))}
+                          <td className="px-3 py-2 text-right font-mono text-xs font-semibold text-blue-700 bg-blue-50">
+                            {row.promedio === 0 ? '—' : row.promedio.toLocaleString('es-CO')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          )}
-
-          {warnings.length > 0 && (
-            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              <div className="flex items-center gap-2 font-semibold"><AlertTriangle size={18} /> Advertencias</div>
-              <ul className="mt-3 list-disc space-y-1 pl-5">
-                {warnings.map((w, i) => <li key={i}>{w}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {/* Formato */}
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 space-y-2">
-            <p className="font-semibold text-slate-900">Formato del archivo</p>
-            <p className="font-mono text-xs bg-white border border-slate-200 rounded-lg px-3 py-2">
-              codigo, nombre, cantidad
-            </p>
-            <ul className="space-y-1 text-xs list-disc pl-4">
-              <li><strong>codigo</strong>: código exacto del catálogo (ej: SP-02-001)</li>
-              <li><strong>nombre</strong>: nombre del producto (referencia, puede quedar vacío)</li>
-              <li><strong>cantidad</strong>: cantidad consumida — filas con 0 se omiten</li>
-            </ul>
-            <p className="text-xs text-slate-400">La semana se toma del selector de arriba, no del archivo.</p>
-          </div>
+          </Card>
         </div>
-      </Card>
-
-      {/* ── Registros cargados para la semana ── */}
-      <Card className="mt-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 size={18} className="text-emerald-500" />
-            <h2 className="text-base font-semibold text-slate-800">
-              Registros cargados{semanaInfo ? ` · ${semanaInfo.label}` : ''}
-            </h2>
-          </div>
-          <span className="text-xs text-slate-400">
-            {loadingRegistros ? 'Cargando...' : `${registrosCargados.length} producto${registrosCargados.length !== 1 ? 's' : ''}`}
-          </span>
-        </div>
-
-        {loadingRegistros ? (
-          <p className="py-6 text-center text-sm text-slate-400">Cargando...</p>
-        ) : registrosCargados.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-400">
-            No hay registros cargados para esta semana.
-          </p>
-        ) : (
-          <div className="overflow-auto max-h-96 rounded-xl border border-slate-200">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 sticky top-0">
-                <tr>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 w-28">Código</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Producto</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 w-28">Cantidad</th>
-                  <th className="px-3 py-2 w-10"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {registrosCargados.map(r => (
-                  <tr key={r.id} className="hover:bg-slate-50">
-                    <td className="px-3 py-2 font-mono text-xs text-slate-600">{r.producto_code}</td>
-                    <td className="px-3 py-2 text-slate-800">{r.producto_name}</td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-700">{r.cantidad_consumida.toLocaleString('es-CO')}</td>
-                    <td className="px-3 py-2">
-                      <button
-                        onClick={() => eliminarRegistro(r.id)}
-                        title="Eliminar registro"
-                        className="rounded-lg p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 transition"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+      )}
     </div>
   );
 }
