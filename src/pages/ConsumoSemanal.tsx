@@ -289,6 +289,9 @@ export function ConsumoSemanal() {
       setWarnings(pending.warnings);
       setSummary({ imports: pending.toInsert.length, warnings: pending.warnings.length });
       setPending(null);
+      // Ir al detalle para que el usuario vea lo que se cargó
+      await cargarDetalle(semana);
+      setTab('detalle');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Error al guardar';
       toast.error(message);
