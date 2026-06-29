@@ -74,7 +74,7 @@ export function SolicitudesInformadas() {
     const { data } = await supabase
       .from('alertas_gestion')
       .select('*')
-      .neq('informado_a', 'SISTEMA')
+      .or('informado_a.is.null,informado_a.neq.SISTEMA')
       .order('created_at', { ascending: false });
     if (data) setRegistros(data as GestionRecord[]);
     setLoading(false);
