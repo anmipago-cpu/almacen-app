@@ -105,7 +105,7 @@ export function ConsumoSemanal() {
       .eq('semana_numero', info.numero)
       .eq('año', info.año)
       .order('producto_name');
-    setRegistrosDetalle((data ?? []) as RegistroCS[]);
+    setRegistrosDetalle((data ?? []) as unknown as RegistroCS[]);
     setLoadingDetalle(false);
   }, []);
 
@@ -143,8 +143,10 @@ export function ConsumoSemanal() {
       .order('año', { ascending: false })
       .order('semana_numero', { ascending: false });
 
+    type SemanaRow = { semana_numero: number; año: number };
+    const rows = (semanas ?? []) as unknown as SemanaRow[];
     const unicas = Array.from(
-      new Map((semanas ?? []).map(s => [`${s.año}-${s.semana_numero}`, s])).values()
+      new Map(rows.map(s => [`${s.año}-${s.semana_numero}`, { numero: s.semana_numero, año: s.año }])).values()
     );
     setSemanasDisponibles(unicas);
     if (unicas.length > 0 && semanasSelec.size === 0) {
@@ -154,7 +156,7 @@ export function ConsumoSemanal() {
     const { data: todos } = await supabase
       .from('consumos_semanales')
       .select('id,producto_code,producto_name,cantidad_consumida,semana_numero,año');
-    setTodosAcumulado((todos ?? []) as RegistroCS[]);
+    setTodosAcumulado((todos ?? []) as unknown as RegistroCS[]);
     setLoadingAcumulado(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
