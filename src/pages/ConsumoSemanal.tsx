@@ -161,7 +161,9 @@ export function ConsumoSemanal() {
     );
     setSemanasDisponibles(unicas);
     if (unicas.length > 0 && semanasSelec.size === 0) {
-      setSemanasSelec(new Set(unicas.slice(0, Math.min(5, unicas.length)).map(s => semanaKey(s.numero, s.año))));
+      // Pre-seleccionar las últimas 4 semanas (las más recientes)
+      const ultimas4 = [...unicas].sort((a, b) => a.año !== b.año ? b.año - a.año : b.numero - a.numero).slice(0, 4);
+      setSemanasSelec(new Set(ultimas4.map(s => semanaKey(s.numero, s.año))));
     }
 
     const { data: todos } = await supabase
