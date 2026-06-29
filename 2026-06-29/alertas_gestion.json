@@ -1,0 +1,299 @@
+[
+  {
+    "id": "cc1205cc-a446-4523-98cc-338f83c221c5",
+    "producto_code": "SP-01-006",
+    "estado": "ROJO",
+    "stock_actual": 2750,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-13T18:22:39.084265+00:00"
+  },
+  {
+    "id": "3941f627-10c4-426e-8e15-4af3a3bece13",
+    "producto_code": "SP-02-008",
+    "estado": "AGOTADO",
+    "stock_actual": 0,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-15T14:18:04.654395+00:00"
+  },
+  {
+    "id": "59580216-814b-430b-b87f-5b1ae68c6857",
+    "producto_code": "SP-02-037",
+    "estado": "AGOTADO",
+    "stock_actual": 0,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-15T14:18:13.369858+00:00"
+  },
+  {
+    "id": "41495ace-cc88-4fe3-b777-2020c45bf54d",
+    "producto_code": "PP-02-012",
+    "estado": "ROJO",
+    "stock_actual": 9000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-15T14:18:25.836728+00:00"
+  },
+  {
+    "id": "d40c0921-8a37-4c61-a43a-3504675a70d6",
+    "producto_code": "SP-02-052",
+    "estado": "AMARILLO",
+    "stock_actual": 1930,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-15T21:11:15.485219+00:00"
+  },
+  {
+    "id": "6dd6dad1-3ab9-4a09-93c3-d3371332cdcc",
+    "producto_code": "SP-03-002",
+    "estado": "AMARILLO",
+    "stock_actual": 96,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-15T21:11:16.807524+00:00"
+  },
+  {
+    "id": "c1394a74-f018-4391-902b-bd2703cabb4f",
+    "producto_code": "SF-01-010",
+    "estado": "AMARILLO",
+    "stock_actual": 1000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-15T21:13:08.713782+00:00"
+  },
+  {
+    "id": "4eab4ac5-eee4-4adb-ad87-b16ece786e5c",
+    "producto_code": "IN-01-004",
+    "estado": "ROJO",
+    "stock_actual": 160,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-16T12:54:43.338473+00:00"
+  },
+  {
+    "id": "cab4d744-d034-42f2-b28f-88cd1b1c05d9",
+    "producto_code": "IN-01-003",
+    "estado": "ROJO",
+    "stock_actual": 700,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-16T12:54:50.581797+00:00"
+  },
+  {
+    "id": "2d06814f-4b27-43a0-bcb9-a471b7096535",
+    "producto_code": "SP-01-007",
+    "estado": "ROJO",
+    "stock_actual": 1875,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-16T12:54:56.825233+00:00"
+  },
+  {
+    "id": "9aa1cccb-fa0c-4589-b411-edbd86f48424",
+    "producto_code": "SP-03-004",
+    "estado": "ROJO",
+    "stock_actual": 17,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-16T20:34:43.045824+00:00"
+  },
+  {
+    "id": "73c3d719-85bb-45c1-85a5-e9fd92380b07",
+    "producto_code": "SP-02-002",
+    "estado": "AMARILLO",
+    "stock_actual": 370,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-17T15:28:25.149051+00:00"
+  },
+  {
+    "id": "adc44e50-a790-4d56-a0c4-8284fcbcbc67",
+    "producto_code": "PP-01-017",
+    "estado": "AMARILLO",
+    "stock_actual": 9000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-17T15:33:45.757112+00:00"
+  },
+  {
+    "id": "7d625a29-1c40-4bc0-8ec5-67a6d8980872",
+    "producto_code": "PP-01-017",
+    "estado": "ROJO",
+    "stock_actual": 9000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-17T15:39:43.403232+00:00"
+  },
+  {
+    "id": "5bd631af-bb4d-4508-90d9-fbd76fddcf82",
+    "producto_code": "SF-01-010",
+    "estado": "ROJO",
+    "stock_actual": 500,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-17T15:39:53.702504+00:00"
+  },
+  {
+    "id": "38dc020e-b0de-44c6-a993-8f265283ace6",
+    "producto_code": "PP-02-005",
+    "estado": "ROJO",
+    "stock_actual": 500,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-19T11:26:12.112703+00:00"
+  },
+  {
+    "id": "717c41a5-748f-4b76-8655-8491fb7f6798",
+    "producto_code": "PP-01-002",
+    "estado": "AMARILLO",
+    "stock_actual": 250,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-19T12:19:37.266+00:00"
+  },
+  {
+    "id": "2f7165aa-39ed-425a-810a-b2750142c252",
+    "producto_code": "PP-02-010",
+    "estado": "AMARILLO",
+    "stock_actual": 200,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-19T12:19:46.439359+00:00"
+  },
+  {
+    "id": "5221d3c9-83e6-49ce-8729-ebc23e953576",
+    "producto_code": "IN-01-002",
+    "estado": "ROJO",
+    "stock_actual": 196,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-19T12:20:49.33706+00:00"
+  },
+  {
+    "id": "80df95b0-1a6d-49fd-bdc3-37a48632e97e",
+    "producto_code": "UT-01-001",
+    "estado": "AMARILLO",
+    "stock_actual": 9000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-25T20:30:50.481672+00:00"
+  },
+  {
+    "id": "5e2e8fd7-534a-423f-be54-343f58243cbd",
+    "producto_code": "LB-01-020",
+    "estado": "ROJO",
+    "stock_actual": 0.3,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-25T20:44:12.514211+00:00"
+  },
+  {
+    "id": "a6bea631-4d5c-49fa-b75e-975f8484c8a6",
+    "producto_code": "LB-01-004",
+    "estado": "AMARILLO",
+    "stock_actual": 35,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-25T20:44:35.3979+00:00"
+  },
+  {
+    "id": "822f1507-9cd0-4535-99f5-96e49a1cfac6",
+    "producto_code": "LB-01-013",
+    "estado": "AMARILLO",
+    "stock_actual": 500,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-25T20:44:47.539112+00:00"
+  },
+  {
+    "id": "333b9457-3cf4-4c3b-9fd7-ab03bfa98239",
+    "producto_code": "SP-01-011",
+    "estado": "AMARILLO",
+    "stock_actual": 1600,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-25T20:54:16.224317+00:00"
+  },
+  {
+    "id": "e9f6404d-a17f-4f0a-9f2a-c224b082c85a",
+    "producto_code": "SP-01-011",
+    "estado": "ROJO",
+    "stock_actual": 1600,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-26T12:21:52.353673+00:00"
+  },
+  {
+    "id": "0206c550-e0be-4e4b-afb5-c6ff667ac670",
+    "producto_code": "SF-01-002",
+    "estado": "ROJO",
+    "stock_actual": 100,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-26T14:01:57.740368+00:00"
+  },
+  {
+    "id": "dcb40ded-8f2f-49aa-baa4-357afae306df",
+    "producto_code": "SF-01-003",
+    "estado": "ROJO",
+    "stock_actual": 1000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-26T14:02:10.62156+00:00"
+  },
+  {
+    "id": "6c370293-6f1f-4ea8-aab4-78f81ef7ea8f",
+    "producto_code": "SF-01-004",
+    "estado": "AMARILLO",
+    "stock_actual": 2000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-26T14:02:26.72805+00:00"
+  },
+  {
+    "id": "7cbf2239-afff-4060-8167-cce435814a0f",
+    "producto_code": "AD-01-002",
+    "estado": "AMARILLO",
+    "stock_actual": 55,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-26T14:10:18.418155+00:00"
+  },
+  {
+    "id": "390b80af-a60b-4780-9139-4e7d1fe240a2",
+    "producto_code": "IN-01-007",
+    "estado": "ROJO",
+    "stock_actual": 88,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-26T14:10:47.00618+00:00"
+  },
+  {
+    "id": "0b23425d-6bcc-4bbb-acca-be5cb44e887f",
+    "producto_code": "CH-01-002",
+    "estado": "ROJO",
+    "stock_actual": 27.5,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-27T16:17:13.641955+00:00"
+  },
+  {
+    "id": "52278200-491e-48fc-8713-14618d69e492",
+    "producto_code": "PP-01-021",
+    "estado": "AMARILLO",
+    "stock_actual": 500,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-27T16:18:23.936966+00:00"
+  },
+  {
+    "id": "5ed12f06-caa0-401c-8208-301e2ef7a143",
+    "producto_code": "SP-01-002",
+    "estado": "AMARILLO",
+    "stock_actual": 175,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-27T16:53:38.240353+00:00"
+  }
+]
