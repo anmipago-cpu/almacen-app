@@ -34,19 +34,29 @@
 }
 
 @media print {
-  /* Ocultar sidebar, header de navegación y botones de acción */
-  aside, nav, header .no-print, [data-print-hide],
-  button, .no-print { display: none !important; }
+  @page { margin: 1cm; size: A4 landscape; }
 
-  /* Ocupar todo el ancho */
+  /* Ocultar sidebar, topbar y botones */
+  aside, [data-print-hide], button, .no-print { display: none !important; }
+
+  /* Layout: quitar flex del contenedor raíz para que el main ocupe todo */
   body { background: white !important; }
-  main, #root > div { padding: 0 !important; margin: 0 !important; }
+  #root > div { display: block !important; padding: 0 !important; margin: 0 !important; }
+  main { width: 100% !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; }
+
+  /* Topbar */
+  header { display: none !important; }
+
+  /* Cards sin sombra */
+  .shadow, .shadow-sm, .shadow-md { box-shadow: none !important; }
+  [class*="rounded"] { border-radius: 4px !important; }
 
   /* Tabla legible en papel */
-  table { font-size: 11px; width: 100%; }
-  th, td { padding: 4px 8px !important; border: 1px solid #e2e8f0; }
-  thead { background: #f8fafc !important; -webkit-print-color-adjust: exact; }
+  table { font-size: 10px !important; width: 100% !important; border-collapse: collapse; }
+  th, td { padding: 3px 6px !important; border: 1px solid #cbd5e1 !important; }
+  thead { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   /* Evitar que las filas se corten entre páginas */
   tr { page-break-inside: avoid; }
+  thead { display: table-header-group; }
 }
