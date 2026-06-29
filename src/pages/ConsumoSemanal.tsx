@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { UploadCloud, AlertTriangle, Search, Trash2 } from 'lucide-react';
+import { UploadCloud, AlertTriangle, Search, Trash2, CheckCircle2, X } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -43,6 +43,13 @@ function semanaKey(numero: number, año: number) { return `${año}-W${String(num
 interface ParsedRow { code: string; name: string; cantidad: number; }
 interface RegistroCS { id: string; producto_code: string; producto_name: string; cantidad_consumida: number; semana_numero: number; año: number; }
 
+interface PendingUpload {
+  fileName:    string;
+  semanaLabel: string;
+  toInsert:    Partial<ConsumoSemanalType>[];
+  warnings:    string[];
+}
+
 // ── Componente ────────────────────────────────────────────────────────────────
 
 export function ConsumoSemanal() {
@@ -75,10 +82,13 @@ export function ConsumoSemanal() {
   }, [productos, catFiltro, subFiltro, busqueda]);
 
   // ── Upload ──
-  const [fileName, setFileName] = useState('');
-  const [warnings, setWarnings] = useState<string[]>([]);
-  const [summary, setSummary]   = useState<{ imports: number; warnings: number } | null>(null);
-  const [loading, setLoading]   = useState(false);
+  const [fileName, setFileName]       = useState('');
+  const [warnings, setWarnings]       = useState<string[]>([]);
+  const [summary, setSummary]         = useState<{ imports: number; warnings: number } | null>(null);
+  const [loading, setLoading]         = useState(false);
+  const [pending, setPending]         = useState<PendingUpload | null>(null);
+  const [confirming, setConfirming]   = useState(false);
+  const fileInputRef                  = useRef<HTMLInputElement>(null);
 
   // ── Registros tab Detalle ──
   const [registrosDetalle, setRegistrosDetalle]     = useState<RegistroCS[]>([]);
@@ -222,6 +232,7 @@ export function ConsumoSemanal() {
     return parseRows(headers, rawRows);
   }
 
+  // Fase 1: parsear y mostrar confirmación
   async function processFile(file: File) {
     if (!semana) { toast.error('Selecciona la semana antes de cargar el archivo.'); return; }
     setSummary(null); setWarnings([]); setFileName(file.name); setLoading(true);
@@ -242,22 +253,21 @@ export function ConsumoSemanal() {
         if (!existingMap.has(row.code)) { missingCodes.push(row.code); return; }
         if (row.cantidad <= 0) return;
         toInsert.push({
-          semana_numero:     info.numero,
-          año:               info.año,
-          producto_code:     row.code,
-          producto_name:     row.name || existingMap.get(row.code) || '',
+          semana_numero:      info.numero,
+          año:                info.año,
+          producto_code:      row.code,
+          producto_name:      row.name || existingMap.get(row.code) || '',
           cantidad_consumida: row.cantidad,
-          fuente:            'ARCHIVO',
+          fuente:             'ARCHIVO',
         });
       });
       if (toInsert.length === 0) throw new Error('No se encontraron registros válidos (cantidad > 0) para importar.');
-      const { error: insertError } = await supabase
-        .from('consumos_semanales')
-        .upsert(toInsert, { onConflict: 'semana_numero,año,producto_code' });
-      if (insertError) throw insertError;
-      toast.success(`${toInsert.length} productos importados para ${info.label}`);
-      setWarnings(missingCodes.map(code => `Código no encontrado en catálogo: ${code}`));
-      setSummary({ imports: toInsert.length, warnings: missingCodes.length });
+      setPending({
+        fileName:    file.name,
+        semanaLabel: info.label,
+        toInsert,
+        warnings:    missingCodes.map(code => `Código no encontrado en catálogo: ${code}`),
+      });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Fallo al procesar el archivo';
       toast.error(message); setWarnings([message]);
@@ -266,9 +276,100 @@ export function ConsumoSemanal() {
     }
   }
 
+  // Fase 2: confirmar e insertar
+  async function confirmarCarga() {
+    if (!pending) return;
+    setConfirming(true);
+    try {
+      const { error } = await supabase
+        .from('consumos_semanales')
+        .upsert(pending.toInsert, { onConflict: 'semana_numero,año,producto_code' });
+      if (error) throw error;
+      toast.success(`${pending.toInsert.length} productos cargados correctamente para ${pending.semanaLabel}`);
+      setWarnings(pending.warnings);
+      setSummary({ imports: pending.toInsert.length, warnings: pending.warnings.length });
+      setPending(null);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al guardar';
+      toast.error(message);
+    } finally {
+      setConfirming(false);
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div>
+
+      {/* Modal de confirmación de carga */}
+      {pending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Confirmar carga</h2>
+                <p className="text-sm text-slate-500 mt-1">{pending.fileName}</p>
+              </div>
+              <button onClick={() => { setPending(null); setFileName(''); }}
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Semana</span>
+                <span className="font-medium text-slate-800">{pending.semanaLabel}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Productos a cargar</span>
+                <span className="font-bold text-emerald-700 text-base">{pending.toInsert.length}</span>
+              </div>
+              {pending.warnings.length > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Códigos no encontrados</span>
+                  <span className="font-medium text-amber-600">{pending.warnings.length}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Vista previa de los primeros productos */}
+            <div className="overflow-auto max-h-48 rounded-xl border border-slate-200 text-xs">
+              <table className="w-full">
+                <thead className="bg-slate-50 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-slate-500 font-semibold">Código</th>
+                    <th className="px-3 py-2 text-left text-slate-500 font-semibold">Producto</th>
+                    <th className="px-3 py-2 text-right text-slate-500 font-semibold">Cantidad</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {pending.toInsert.map((r, i) => (
+                    <tr key={i} className="hover:bg-slate-50">
+                      <td className="px-3 py-1.5 font-mono text-slate-600">{r.producto_code}</td>
+                      <td className="px-3 py-1.5 text-slate-800">{r.producto_name}</td>
+                      <td className="px-3 py-1.5 text-right font-mono text-slate-700">{Number(r.cantidad_consumida).toLocaleString('es-CO')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button onClick={() => { setPending(null); setFileName(''); }}
+                className="flex-1 rounded-2xl border border-slate-200 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition">
+                Cancelar
+              </button>
+              <button onClick={confirmarCarga} disabled={confirming}
+                className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition disabled:opacity-60">
+                <CheckCircle2 size={16} />
+                {confirming ? 'Guardando...' : 'Confirmar carga'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Header
         title="Carga Semanal (Solo monitoreo)"
         subtitle="Registra consumos históricos por semana para seguimiento. No descuenta inventario."
@@ -390,12 +491,12 @@ export function ConsumoSemanal() {
               </div>
               <div className="flex items-center gap-4">
                 <Button variant="secondary" icon={<UploadCloud size={16} />}
-                  onClick={() => document.getElementById('consumo-file')?.click()} loading={loading}>
+                  onClick={() => fileInputRef.current?.click()} loading={loading}>
                   Seleccionar archivo CSV / Excel
                 </Button>
                 {fileName && <span className="text-sm text-slate-500 truncate">{fileName}</span>}
               </div>
-              <input id="consumo-file" type="file" accept=".csv,.xlsx"
+              <input ref={fileInputRef} type="file" accept=".csv,.xlsx"
                 onChange={e => { const file = e.target.files?.[0]; if (file) processFile(file); e.target.value = ''; }}
                 className="hidden" />
               {summary && (
