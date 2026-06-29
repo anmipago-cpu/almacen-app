@@ -579,6 +579,18 @@ export function ConsumoSemanal() {
                   <Trash2 size={12} /> Eliminar semana completa
                 </button>
               )}
+              <button
+                onClick={async () => {
+                  if (!confirm('¿Eliminar TODOS los registros de todas las semanas? Esta acción no se puede deshacer.')) return;
+                  const { error } = await supabase.from('consumos_semanales').delete().neq('id', '');
+                  if (error) { toast.error('Error al eliminar.'); return; }
+                  setRegistrosDetalle([]);
+                  toast.success('Todos los registros eliminados.');
+                }}
+                className="flex items-center gap-1.5 rounded-xl border border-red-400 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition"
+              >
+                <Trash2 size={12} /> Eliminar todo
+              </button>
             </div>
 
             {loadingDetalle ? (
