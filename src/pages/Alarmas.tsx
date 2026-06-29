@@ -126,89 +126,27 @@ export function Alarmas() {
     return matchEstado && matchBusqueda;
   }), [datos, filtroEstado, busqueda]);
 
-  // ── Detección automática de cambios de estado ───────────────────────────
-  // Reglas:
-  //  1. Notifica cuando el estado EMPEORA respecto al último notificado (VERDE→AMARILLO, AMARILLO→ROJO, etc.)
-  //  2. Nunca repite la misma notificación para el mismo estado en el mismo producto
-  //  3. Recordatorio si lleva 4+ días en ROJO/AGOTADO (máx 1 vez por día)
-  //  4. Resumen completo los lunes (una vez por semana)
+  // ── Detección de cambios de estado (solo toast, WhatsApp va por GitHub Actions) ──
   useEffect(() => {
     if (loading || notifChecked.current || configurados.length === 0) return;
     notifChecked.current = true;
 
-    // notified: { [code]: { estado, notifiedAt } } — cuándo fue la última notificación y en qué estado
-    const NOTIFIED_KEY  = 'alarmas_notified_v2';
-    const WEEKLY_KEY    = 'alarmas_weekly_sent';
-    const now           = Date.now();
-    const MS_4_DAYS     = 4 * 24 * 60 * 60 * 1000;
-    const MS_24H        = 24 * 60 * 60 * 1000;
-    const hoyDia        = new Date().getDay();
-    const inicioSemana  = (() => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - (hoyDia === 0 ? 6 : hoyDia - 1)); return d.toISOString().slice(0,10); })();
-
-    let notified: Record<string, { estado: string; notifiedAt: number; enteredCriticalAt: number | null }> = {};
+    const NOTIFIED_KEY = 'alarmas_notified_v2';
+    let notified: Record<string, { estado: string }> = {};
     try { notified = JSON.parse(localStorage.getItem(NOTIFIED_KEY) || '{}'); } catch { /* noop */ }
 
-    const toNotify:   InventarioItem[] = [];
-    const reminders:  InventarioItem[] = [];
-
+    const nuevas: InventarioItem[] = [];
     configurados.forEach(item => {
-      const estado    = getSemaforo(item);
-      const currSev   = SEVERIDAD[estado] ?? 0;
-      const prev      = notified[item.code];
-      const prevSev   = SEVERIDAD[prev?.estado ?? 'VERDE'] ?? 0;
-
-      if (estado === 'VERDE') {
-        // Mejoró a verde: limpiar tracking de crítico
-        if (prev) notified[item.code] = { ...prev, estado: 'VERDE', enteredCriticalAt: null };
-        return;
-      }
-
-      const isCritical = estado === 'ROJO' || estado === 'AGOTADO';
-
-      // ── Notificar si el estado empeoró ──
-      if (currSev > prevSev) {
-        toNotify.push(item);
-        notified[item.code] = {
-          estado,
-          notifiedAt: now,
-          enteredCriticalAt: isCritical ? (prev?.enteredCriticalAt ?? now) : null,
-        };
-        return;
-      }
-
-      // ── Recordatorio 4 días en crítico (máx 1 por día) ──
-      if (isCritical && prev) {
-        const enteredAt     = prev.enteredCriticalAt ?? prev.notifiedAt;
-        const sinceEntered  = now - enteredAt;
-        const sinceNotified = now - prev.notifiedAt;
-        if (sinceEntered >= MS_4_DAYS && sinceNotified >= MS_24H) {
-          reminders.push(item);
-          notified[item.code] = { ...prev, notifiedAt: now };
-        }
-      }
+      const estado  = getSemaforo(item);
+      const currSev = SEVERIDAD[estado] ?? 0;
+      const prevSev = SEVERIDAD[notified[item.code]?.estado ?? 'VERDE'] ?? 0;
+      notified[item.code] = { estado };
+      if (currSev > prevSev && estado !== 'VERDE') nuevas.push(item);
     });
 
     localStorage.setItem(NOTIFIED_KEY, JSON.stringify(notified));
-
-    if (toNotify.length > 0) {
-      toast.warning(`${toNotify.length} producto(s) con nueva alerta. Enviando notificaciones...`);
-      sendAlerts(toNotify, false);
-    }
-    if (reminders.length > 0) {
-      toast.warning(`${reminders.length} producto(s) llevan 4+ días en estado crítico. Enviando recordatorio...`);
-      sendAlerts(reminders, true);
-    }
-
-    // ── Resumen semanal (lunes, una vez por semana) ──────────────────────
-    const lastWeeklySent = localStorage.getItem(WEEKLY_KEY) || '';
-    if (hoyDia === 1 && lastWeeklySent !== inicioSemana) {
-      const enAlerta = configurados.filter(i => getSemaforo(i) !== 'VERDE');
-      if (enAlerta.length > 0) {
-        localStorage.setItem(WEEKLY_KEY, inicioSemana);
-        toast.info(`Enviando resumen semanal de ${enAlerta.length} producto(s) en alerta...`);
-        sendAlerts(enAlerta, false);
-      }
-    }
+    if (nuevas.length > 0)
+      toast.warning(`${nuevas.length} producto(s) con estado de alarma actualizado.`);
   }, [loading, configurados]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Envío de notificaciones ─────────────────────────────────────────────

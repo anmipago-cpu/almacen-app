@@ -1,0 +1,28 @@
+name: Notificaciones de Alarmas
+
+on:
+  schedule:
+    - cron: '0 13 * * *'   # 8:00 AM Colombia (UTC-5) todos los días
+  workflow_dispatch:
+
+jobs:
+  notify:
+    name: Verificar y Notificar Alarmas
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install requests
+
+      - name: Verificar alarmas y notificar
+        env:
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CALLMEBOT_PHONE:           ${{ secrets.CALLMEBOT_PHONE }}
+          CALLMEBOT_APIKEY:          ${{ secrets.CALLMEBOT_APIKEY }}
+        run: python scripts/notify_alerts.py

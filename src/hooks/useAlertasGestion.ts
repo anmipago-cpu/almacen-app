@@ -41,7 +41,7 @@ export function useAlertasGestion() {
   }
 
   function getUltima(code: string): GestionRecord | undefined {
-    return gestiones.find(g => g.producto_code === code);
+    return gestiones.find(g => g.producto_code === code && g.informado_a !== 'SISTEMA');
   }
 
   // Necesita (re)informar si nunca se informó o si el estado empeoró
