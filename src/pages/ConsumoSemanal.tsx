@@ -94,9 +94,20 @@ export function ConsumoSemanal() {
   const [registrosDetalle, setRegistrosDetalle]     = useState<RegistroCS[]>([]);
   const [loadingDetalle, setLoadingDetalle]         = useState(false);
   const [busquedaDetalle, setBusquedaDetalle]       = useState('');
+  const [verTodas, setVerTodas]                     = useState(false);
 
-  const cargarDetalle = useCallback(async (semStr: string) => {
-    if (!semStr) return;
+  const cargarDetalle = useCallback(async (semStr: string, todas = false) => {
+    setLoadingDetalle(true);
+    if (todas) {
+      const { data } = await supabase
+        .from('consumos_semanales')
+        .select('id,producto_code,producto_name,cantidad_consumida,semana_numero,año')
+        .order('año').order('semana_numero').order('producto_name');
+      setRegistrosDetalle((data ?? []) as unknown as RegistroCS[]);
+      setLoadingDetalle(false);
+      return;
+    }
+    if (!semStr) { setLoadingDetalle(false); return; }
     const info = isoWeekToRange(semStr);
     setLoadingDetalle(true);
     const { data } = await supabase
@@ -110,8 +121,8 @@ export function ConsumoSemanal() {
   }, []);
 
   useEffect(() => {
-    if (tab === 'detalle') cargarDetalle(semana);
-  }, [tab, semana, cargarDetalle]);
+    if (tab === 'detalle') cargarDetalle(semana, verTodas);
+  }, [tab, semana, verTodas, cargarDetalle]);
 
   const detallesFiltrados = useMemo(() => {
     const q = busquedaDetalle.trim().toLowerCase();
@@ -546,11 +557,17 @@ export function ConsumoSemanal() {
             <div className="flex flex-wrap items-end gap-4">
               <div>
                 <label className="text-sm font-medium text-slate-700">Semana</label>
-                <input type="week" value={semana}
+                <input type="week" value={semana} disabled={verTodas}
                   onChange={e => { setSemana(e.target.value); setBusquedaDetalle(''); }}
-                  className="mt-1 block rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                {semanaInfo && <p className="mt-1 text-xs text-slate-500">{semanaInfo.label}</p>}
+                  className="mt-1 block rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40" />
+                {!verTodas && semanaInfo && <p className="mt-1 text-xs text-slate-500">{semanaInfo.label}</p>}
               </div>
+              <label className="flex items-center gap-2 cursor-pointer pb-1 whitespace-nowrap">
+                <input type="checkbox" checked={verTodas}
+                  onChange={e => { setVerTodas(e.target.checked); setBusquedaDetalle(''); }}
+                  className="w-4 h-4 rounded accent-blue-600" />
+                <span className="text-sm text-slate-600">Ver todas las semanas</span>
+              </label>
               <div className="relative flex-1 min-w-[200px]">
                 <Search size={14} className="absolute left-3 top-3 text-slate-400 pointer-events-none" />
                 <input value={busquedaDetalle} onChange={e => setBusquedaDetalle(e.target.value)}
@@ -596,12 +613,13 @@ export function ConsumoSemanal() {
             {loadingDetalle ? (
               <p className="py-8 text-center text-slate-400">Cargando...</p>
             ) : detallesFiltrados.length === 0 ? (
-              <p className="py-8 text-center text-slate-400">No hay registros cargados para esta semana.</p>
+              <p className="py-8 text-center text-slate-400">No hay registros cargados{verTodas ? '.' : ' para esta semana.'}</p>
             ) : (
               <div className="overflow-auto max-h-[60vh] rounded-xl border border-slate-200">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 sticky top-0">
                     <tr>
+                      {verTodas && <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">Semana</th>}
                       <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 w-28">Código</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Producto</th>
                       <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 w-28">Cantidad</th>
@@ -611,6 +629,11 @@ export function ConsumoSemanal() {
                   <tbody className="divide-y divide-slate-100">
                     {detallesFiltrados.map(r => (
                       <tr key={r.id} className="hover:bg-slate-50">
+                        {verTodas && (
+                          <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">
+                            {isoWeekToRange(semanaKey(r.semana_numero, r.año)).labelCorto}
+                          </td>
+                        )}
                         <td className="px-3 py-2 font-mono text-xs text-slate-600">{r.producto_code}</td>
                         <td className="px-3 py-2 text-slate-800">{r.producto_name}</td>
                         <td className="px-3 py-2 text-right font-mono text-slate-700">{r.cantidad_consumida.toLocaleString('es-CO')}</td>
