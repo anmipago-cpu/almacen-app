@@ -989,22 +989,21 @@ function PanelActualizarConsumo({ productos, onClose, onActualizado }: {
   async function cargar() {
     setCargando(true);
     try {
-      // Rango de semanas ISO para filtrar
-      let semanasValidas: Set<string> | null = null;
-      if (semanas > 0) {
-        semanasValidas = new Set<string>();
-        const hoy = new Date();
-        for (let i = 0; i < semanas; i++) {
-          const d = new Date(hoy);
-          d.setDate(d.getDate() - i * 7);
-          semanasValidas.add(getISOWeek(d.toISOString().slice(0, 10)));
-        }
-      }
-
       const weekMap: Record<string, Record<string, number>> = {};
 
       if (fuente === 'consumo_real') {
         // ── Fuente: módulo Consumo (recepciones tipo CONSUMO) ──────────────
+        // Aquí "semanas" es calendario porque los registros tienen fecha exacta
+        let semanasValidas: Set<string> | null = null;
+        if (semanas > 0) {
+          semanasValidas = new Set<string>();
+          const hoy = new Date();
+          for (let i = 0; i < semanas; i++) {
+            const d = new Date(hoy);
+            d.setDate(d.getDate() - i * 7);
+            semanasValidas.add(getISOWeek(d.toISOString().slice(0, 10)));
+          }
+        }
         let q = supabase
           .from('recepciones')
           .select('producto_code, total_unidades_base, fecha')
@@ -1019,22 +1018,39 @@ function PanelActualizarConsumo({ productos, onClose, onActualizado }: {
         const { data } = await q;
         (data ?? []).forEach(rec => {
           const wk = getISOWeek(rec.fecha);
+          if (semanasValidas && !semanasValidas.has(wk)) return;
           if (!weekMap[rec.producto_code]) weekMap[rec.producto_code] = {};
           weekMap[rec.producto_code][wk] = (weekMap[rec.producto_code][wk] || 0) + Number(rec.total_unidades_base);
         });
       } else {
-        // ── Fuente: Carga Semanal (consumos_semanales — no descuenta inventario) ──
+        // ── Fuente: Carga Semanal — las N semanas más recientes CON DATOS ──
+        // (no por calendario, para coincidir con la pestaña Acumulado)
+        type CSRow = { producto_code: string; cantidad_consumida: number; semana_numero: number; año: number };
         const { data } = await supabase
           .from('consumos_semanales')
           .select('producto_code, cantidad_consumida, semana_numero, año')
           .gt('cantidad_consumida', 0);
-        (data as unknown as { producto_code: string; cantidad_consumida: number; semana_numero: number; año: number }[] ?? [])
-          .forEach(rec => {
-            const wk = `${rec.año}-W${String(rec.semana_numero).padStart(2, '0')}`;
-            if (semanasValidas && !semanasValidas.has(wk)) return;
-            if (!weekMap[rec.producto_code]) weekMap[rec.producto_code] = {};
-            weekMap[rec.producto_code][wk] = (weekMap[rec.producto_code][wk] || 0) + Number(rec.cantidad_consumida);
-          });
+        const rows = (data as unknown as CSRow[] ?? []);
+
+        // Obtener semanas disponibles ordenadas de más reciente a más antigua
+        const semanasUnicas = Array.from(
+          new Map(rows.map(r => {
+            const wk = `${r.año}-W${String(r.semana_numero).padStart(2, '0')}`;
+            return [wk, wk];
+          })).values()
+        ).sort((a, b) => b.localeCompare(a)); // descendente
+
+        // Tomar las últimas N semanas con datos (o todas si semanas===0)
+        const semanasValidas: Set<string> | null = semanas > 0
+          ? new Set(semanasUnicas.slice(0, semanas))
+          : null;
+
+        rows.forEach(rec => {
+          const wk = `${rec.año}-W${String(rec.semana_numero).padStart(2, '0')}`;
+          if (semanasValidas && !semanasValidas.has(wk)) return;
+          if (!weekMap[rec.producto_code]) weekMap[rec.producto_code] = {};
+          weekMap[rec.producto_code][wk] = (weekMap[rec.producto_code][wk] || 0) + Number(rec.cantidad_consumida);
+        });
       }
 
       const resultado: FilaConsumo[] = [];
