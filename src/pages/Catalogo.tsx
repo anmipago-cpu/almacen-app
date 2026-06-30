@@ -972,40 +972,65 @@ function PanelActualizarConsumo({ productos, onClose, onActualizado }: {
   onClose: () => void;
   onActualizado: () => void;
 }) {
-  const [semanas, setSemanas] = useState<4 | 8 | 12 | 0>(8);
-  const [filas, setFilas] = useState<FilaConsumo[]>([]);
-  const [cargando, setCargando] = useState(false);
+  const [fuente, setFuente]       = useState<'consumo_real' | 'historial'>('consumo_real');
+  const [semanas, setSemanas]     = useState<4 | 8 | 12 | 0>(8);
+  const [filas, setFilas]         = useState<FilaConsumo[]>([]);
+  const [cargando, setCargando]   = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [soloConDiferencia, setSoloConDiferencia] = useState(true);
 
-  useEffect(() => { cargar(); }, [semanas]);
+  useEffect(() => { cargar(); }, [semanas, fuente]);
 
   async function cargar() {
     setCargando(true);
     try {
-      let query = supabase
-        .from('recepciones')
-        .select('producto_code, total_unidades_base, fecha')
-        .eq('tipo', 'CONSUMO')
-        .gt('total_unidades_base', 0)
-        .order('fecha', { ascending: false });
-
+      // Rango de semanas ISO para filtrar
+      let semanasValidas: Set<string> | null = null;
       if (semanas > 0) {
-        const desde = new Date();
-        desde.setDate(desde.getDate() - semanas * 7);
-        query = query.gte('fecha', desde.toISOString().slice(0, 10));
+        semanasValidas = new Set<string>();
+        const hoy = new Date();
+        for (let i = 0; i < semanas; i++) {
+          const d = new Date(hoy);
+          d.setDate(d.getDate() - i * 7);
+          semanasValidas.add(getISOWeek(d.toISOString().slice(0, 10)));
+        }
       }
 
-      const { data } = await query;
-      if (!data) return;
-
-      // Agrupar por producto → semana → sumar consumo
       const weekMap: Record<string, Record<string, number>> = {};
-      data.forEach(rec => {
-        const wk = getISOWeek(rec.fecha);
-        if (!weekMap[rec.producto_code]) weekMap[rec.producto_code] = {};
-        weekMap[rec.producto_code][wk] = (weekMap[rec.producto_code][wk] || 0) + Number(rec.total_unidades_base);
-      });
+
+      if (fuente === 'consumo_real') {
+        // ── Fuente: módulo Consumo (recepciones tipo CONSUMO) ──────────────
+        let q = supabase
+          .from('recepciones')
+          .select('producto_code, total_unidades_base, fecha')
+          .eq('tipo', 'CONSUMO')
+          .gt('total_unidades_base', 0)
+          .order('fecha', { ascending: false });
+        if (semanas > 0) {
+          const desde = new Date();
+          desde.setDate(desde.getDate() - semanas * 7);
+          q = q.gte('fecha', desde.toISOString().slice(0, 10));
+        }
+        const { data } = await q;
+        (data ?? []).forEach(rec => {
+          const wk = getISOWeek(rec.fecha);
+          if (!weekMap[rec.producto_code]) weekMap[rec.producto_code] = {};
+          weekMap[rec.producto_code][wk] = (weekMap[rec.producto_code][wk] || 0) + Number(rec.total_unidades_base);
+        });
+      } else {
+        // ── Fuente: Carga Semanal (consumos_semanales — no descuenta inventario) ──
+        const { data } = await supabase
+          .from('consumos_semanales')
+          .select('producto_code, cantidad_consumida, semana_numero, año')
+          .gt('cantidad_consumida', 0);
+        (data as unknown as { producto_code: string; cantidad_consumida: number; semana_numero: number; año: number }[] ?? [])
+          .forEach(rec => {
+            const wk = `${rec.año}-W${String(rec.semana_numero).padStart(2, '0')}`;
+            if (semanasValidas && !semanasValidas.has(wk)) return;
+            if (!weekMap[rec.producto_code]) weekMap[rec.producto_code] = {};
+            weekMap[rec.producto_code][wk] = (weekMap[rec.producto_code][wk] || 0) + Number(rec.cantidad_consumida);
+          });
+      }
 
       const resultado: FilaConsumo[] = [];
       Object.entries(weekMap).forEach(([code, weeks]) => {
@@ -1015,12 +1040,12 @@ function PanelActualizarConsumo({ productos, onClose, onActualizado }: {
         const promedio = semanasArr.reduce((a, b) => a + b, 0) / semanasArr.length;
         resultado.push({
           code,
-          name: prod.name,
-          consumo_actual: prod.consumo_promedio_semanal ?? null,
-          lead_time: prod.lead_time_semanas ?? null,
-          promedio_calculado: parseFloat(promedio.toFixed(4)),
-          semanas_con_datos: semanasArr.length,
-          seleccionado: false,
+          name:                prod.name,
+          consumo_actual:      prod.consumo_promedio_semanal ?? null,
+          lead_time:           prod.lead_time_semanas ?? null,
+          promedio_calculado:  parseFloat(promedio.toFixed(4)),
+          semanas_con_datos:   semanasArr.length,
+          seleccionado:        false,
         });
       });
 
@@ -1088,9 +1113,25 @@ function PanelActualizarConsumo({ productos, onClose, onActualizado }: {
         </div>
 
         {/* Filtros */}
-        <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b border-slate-100 bg-slate-50">
-          <div className="flex items-center gap-2 text-sm text-slate-600">
-            <span className="font-medium">Período:</span>
+        <div className="flex flex-wrap items-center gap-4 px-6 py-3 border-b border-slate-100 bg-slate-50">
+          {/* Selector de fuente */}
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200 overflow-hidden text-xs font-medium">
+            <button onClick={() => setFuente('consumo_real')}
+              className={`px-3 py-1.5 transition-colors ${fuente === 'consumo_real' ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
+              📦 Consumo real
+            </button>
+            <button onClick={() => setFuente('historial')}
+              className={`px-3 py-1.5 transition-colors ${fuente === 'historial' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
+              📊 Carga Semanal
+            </button>
+          </div>
+          <span className="text-xs text-slate-400">
+            {fuente === 'consumo_real'
+              ? 'Usa consumos que sí descuentan inventario'
+              : 'Usa historial de monitoreo — no descuenta inventario'}
+          </span>
+          <div className="flex items-center gap-2 text-sm text-slate-600 ml-auto">
+            <span className="font-medium text-xs">Período:</span>
             {([4, 8, 12, 0] as const).map(s => (
               <button key={s} onClick={() => setSemanas(s)}
                 className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${semanas === s ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-400'}`}>
