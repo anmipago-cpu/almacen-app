@@ -992,30 +992,23 @@ function PanelActualizarConsumo({ productos, onClose, onActualizado }: {
       const weekMap: Record<string, Record<string, number>> = {};
 
       if (fuente === 'consumo_real') {
-        // ── Fuente: módulo Consumo (recepciones tipo CONSUMO) ──────────────
-        // Aquí "semanas" es calendario porque los registros tienen fecha exacta
-        let semanasValidas: Set<string> | null = null;
-        if (semanas > 0) {
-          semanasValidas = new Set<string>();
-          const hoy = new Date();
-          for (let i = 0; i < semanas; i++) {
-            const d = new Date(hoy);
-            d.setDate(d.getDate() - i * 7);
-            semanasValidas.add(getISOWeek(d.toISOString().slice(0, 10)));
-          }
-        }
-        let q = supabase
+        // ── Fuente: módulo Consumo — las N semanas más recientes CON DATOS ──
+        const { data } = await supabase
           .from('recepciones')
           .select('producto_code, total_unidades_base, fecha')
           .eq('tipo', 'CONSUMO')
           .gt('total_unidades_base', 0)
           .order('fecha', { ascending: false });
-        if (semanas > 0) {
-          const desde = new Date();
-          desde.setDate(desde.getDate() - semanas * 7);
-          q = q.gte('fecha', desde.toISOString().slice(0, 10));
-        }
-        const { data } = await q;
+
+        // Semanas ISO únicas con datos, ordenadas de más reciente a más antigua
+        const semanasUnicasReal = Array.from(
+          new Set((data ?? []).map(r => getISOWeek(r.fecha)))
+        ).sort((a, b) => b.localeCompare(a));
+
+        const semanasValidas: Set<string> | null = semanas > 0
+          ? new Set(semanasUnicasReal.slice(0, semanas))
+          : null;
+
         (data ?? []).forEach(rec => {
           const wk = getISOWeek(rec.fecha);
           if (semanasValidas && !semanasValidas.has(wk)) return;
