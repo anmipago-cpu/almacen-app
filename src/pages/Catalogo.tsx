@@ -951,6 +951,8 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
 interface FilaConsumo {
   code: string;
   name: string;
+  category: string;
+  subcategory: string;
   consumo_actual: number | null;
   lead_time: number | null;
   promedio_calculado: number;
@@ -978,6 +980,9 @@ function PanelActualizarConsumo({ productos, onClose, onActualizado }: {
   const [cargando, setCargando]   = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [soloConDiferencia, setSoloConDiferencia] = useState(true);
+  const [busqueda, setBusqueda]   = useState('');
+  const [catFiltro, setCatFiltro] = useState('');
+  const [subFiltro, setSubFiltro] = useState('');
 
   useEffect(() => { cargar(); }, [semanas, fuente]);
 
@@ -1041,6 +1046,8 @@ function PanelActualizarConsumo({ productos, onClose, onActualizado }: {
         resultado.push({
           code,
           name:                prod.name,
+          category:            prod.category ?? '',
+          subcategory:         prod.subcategory ?? '',
           consumo_actual:      prod.consumo_promedio_semanal ?? null,
           lead_time:           prod.lead_time_semanas ?? null,
           promedio_calculado:  parseFloat(promedio.toFixed(4)),
@@ -1069,9 +1076,18 @@ function PanelActualizarConsumo({ productos, onClose, onActualizado }: {
     setFilas(prev => prev.map(f => ({ ...f, seleccionado: filasMostradas.some(fm => fm.code === f.code) ? checked : f.seleccionado })));
   }
 
-  const filasMostradas = soloConDiferencia
-    ? filas.filter(f => f.consumo_actual === null || Math.abs(f.consumo_actual - f.promedio_calculado) > 0.01)
-    : filas;
+  const subcatsPanel = catFiltro
+    ? Object.entries(SUBCATEGORIAS[catFiltro] || {}).map(([key, label]) => ({ key: `${catFiltro}:${key}`, label }))
+    : [];
+
+  const filasMostradas = filas.filter(f => {
+    const q = busqueda.trim().toLowerCase();
+    if (q && !f.code.toLowerCase().includes(q) && !f.name.toLowerCase().includes(q)) return false;
+    if (catFiltro && f.category !== catFiltro) return false;
+    if (subFiltro && `${f.category}:${f.subcategory}` !== subFiltro) return false;
+    if (soloConDiferencia && f.consumo_actual !== null && Math.abs(f.consumo_actual - f.promedio_calculado) <= 0.01) return false;
+    return true;
+  });
 
   const seleccionadas = filas.filter(f => f.seleccionado);
 
@@ -1143,6 +1159,34 @@ function PanelActualizarConsumo({ productos, onClose, onActualizado }: {
             <input type="checkbox" checked={soloConDiferencia} onChange={e => setSoloConDiferencia(e.target.checked)} className="h-4 w-4 rounded" />
             Solo con diferencia
           </label>
+        </div>
+
+        {/* Filtros categoría + búsqueda */}
+        <div className="flex flex-wrap items-center gap-2 px-6 py-2 border-b border-slate-100">
+          <input
+            value={busqueda} onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar por código o nombre..."
+            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs w-52 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          />
+          <select value={catFiltro} onChange={e => { setCatFiltro(e.target.value); setSubFiltro(''); }}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 focus:outline-none">
+            <option value="">Todas las categorías</option>
+            {Object.entries(CATEGORIAS).map(([code, cat]) => (
+              <option key={code} value={code}>{cat.label}</option>
+            ))}
+          </select>
+          {subcatsPanel.length > 0 && (
+            <select value={subFiltro} onChange={e => setSubFiltro(e.target.value)}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 focus:outline-none">
+              <option value="">Todas las subcategorías</option>
+              {subcatsPanel.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+            </select>
+          )}
+          {(busqueda || catFiltro) && (
+            <button onClick={() => { setBusqueda(''); setCatFiltro(''); setSubFiltro(''); }}
+              className="text-xs text-slate-400 hover:text-slate-600 underline">Limpiar</button>
+          )}
+          <span className="ml-auto text-xs text-slate-400">{filasMostradas.length} productos</span>
         </div>
 
         {/* Tabla */}

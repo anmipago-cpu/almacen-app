@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { UploadCloud, AlertTriangle, Search, Trash2, CheckCircle2, X } from 'lucide-react';
+import { UploadCloud, AlertTriangle, Search, Trash2, CheckCircle2, X, Download, Printer } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -714,6 +714,30 @@ export function ConsumoSemanal() {
                     className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <span className="text-xs text-slate-400 whitespace-nowrap">{tablaAcumulada.length} productos</span>
+                <button
+                  onClick={() => {
+                    if (!tablaAcumulada.length) return;
+                    const datos = tablaAcumulada.map(row => {
+                      const obj: Record<string, string | number> = { Código: row.code, Producto: row.name };
+                      semanasOrdenadas.forEach((s, j) => { obj[isoWeekToRange(semanaKey(s.numero, s.año)).labelCorto] = row.valores[j] || 0; });
+                      obj['Promedio'] = row.promedio;
+                      return obj;
+                    });
+                    const ws = XLSX.utils.json_to_sheet(datos);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, 'Acumulado');
+                    XLSX.writeFile(wb, 'consumo_acumulado.xlsx');
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 transition"
+                >
+                  <Download size={13} /> Excel
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 transition"
+                >
+                  <Printer size={13} /> Imprimir
+                </button>
               </div>
 
               {semanasOrdenadas.length === 0 ? (
