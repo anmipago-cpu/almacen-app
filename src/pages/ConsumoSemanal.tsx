@@ -126,7 +126,6 @@ export function ConsumoSemanal() {
     const rows = (data ?? []) as unknown as RegistroCS[];
     setRegistrosDetalle(rows);
 
-    type SemanaRow = { semana_numero: number; año: number };
     const unicas = Array.from(
       new Map(rows.map(r => [`${r.año}-${r.semana_numero}`, { numero: r.semana_numero, año: r.año }])).values()
     ).sort((a, b) => a.año !== b.año ? a.año - b.año : a.numero - b.numero);
