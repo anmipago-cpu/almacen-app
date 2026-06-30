@@ -111,42 +111,44 @@ export function ConsumoSemanal() {
   const fileInputRef                  = useRef<HTMLInputElement>(null);
 
   // ── Registros tab Detalle ──
-  const [registrosDetalle, setRegistrosDetalle]     = useState<RegistroCS[]>([]);
-  const [loadingDetalle, setLoadingDetalle]         = useState(false);
-  const [busquedaDetalle, setBusquedaDetalle]       = useState('');
-  const [verTodas, setVerTodas]                     = useState(false);
+  const [registrosDetalle, setRegistrosDetalle]         = useState<RegistroCS[]>([]);
+  const [loadingDetalle, setLoadingDetalle]             = useState(false);
+  const [busquedaDetalle, setBusquedaDetalle]           = useState('');
+  const [semanasDetDisp, setSemanasDetDisp]             = useState<{ numero: number; año: number }[]>([]);
+  const [semanasDetSelec, setSemanasDetSelec]           = useState<Set<string>>(new Set());
 
-  const cargarDetalle = useCallback(async (semStr: string, todas = false) => {
-    setLoadingDetalle(true);
-    if (todas) {
-      const { data } = await supabase
-        .from('consumos_semanales')
-        .select('id,producto_code,producto_name,cantidad_consumida,semana_numero,año')
-        .order('año').order('semana_numero').order('producto_name');
-      setRegistrosDetalle((data ?? []) as unknown as RegistroCS[]);
-      setLoadingDetalle(false);
-      return;
-    }
-    if (!semStr) { setLoadingDetalle(false); return; }
-    const info = isoWeekToRange(semStr);
+  const cargarDetalle = useCallback(async (semanaInicial?: string) => {
     setLoadingDetalle(true);
     const { data } = await supabase
       .from('consumos_semanales')
       .select('id,producto_code,producto_name,cantidad_consumida,semana_numero,año')
-      .eq('semana_numero', info.numero)
-      .eq('año', info.año)
-      .order('producto_name');
-    setRegistrosDetalle((data ?? []) as unknown as RegistroCS[]);
+      .order('año').order('semana_numero').order('producto_name');
+    const rows = (data ?? []) as unknown as RegistroCS[];
+    setRegistrosDetalle(rows);
+
+    type SemanaRow = { semana_numero: number; año: number };
+    const unicas = Array.from(
+      new Map(rows.map(r => [`${r.año}-${r.semana_numero}`, { numero: r.semana_numero, año: r.año }])).values()
+    ).sort((a, b) => a.año !== b.año ? a.año - b.año : a.numero - b.numero);
+    setSemanasDetDisp(unicas);
+
+    if (unicas.length > 0) {
+      const selInicial = semanaInicial
+        ? new Set([semanaInicial])
+        : new Set([semanaKey(unicas[unicas.length - 1].numero, unicas[unicas.length - 1].año)]);
+      setSemanasDetSelec(selInicial);
+    }
     setLoadingDetalle(false);
   }, []);
 
   useEffect(() => {
-    if (tab === 'detalle') cargarDetalle(semana, verTodas);
-  }, [tab, semana, verTodas, cargarDetalle]);
+    if (tab === 'detalle') cargarDetalle(semana);
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const detallesFiltrados = useMemo(() => {
     const q = busquedaDetalle.trim().toLowerCase();
     return registrosDetalle.filter(r => {
+      if (semanasDetSelec.size > 0 && !semanasDetSelec.has(semanaKey(r.semana_numero, r.año))) return false;
       if (q && !r.producto_code.toLowerCase().includes(q) && !r.producto_name.toLowerCase().includes(q)) return false;
       if (catDetalle) {
         const p = prodMap[r.producto_code];
@@ -158,7 +160,7 @@ export function ConsumoSemanal() {
       }
       return true;
     });
-  }, [registrosDetalle, busquedaDetalle, catDetalle, subDetalle, prodMap]);
+  }, [registrosDetalle, semanasDetSelec, busquedaDetalle, catDetalle, subDetalle, prodMap]);
 
   async function eliminarRegistro(id: string) {
     const { error } = await supabase.from('consumos_semanales').delete().eq('id', id);
@@ -586,20 +588,48 @@ export function ConsumoSemanal() {
       {tab === 'detalle' && (
         <Card>
           <div className="space-y-4">
-            <div className="flex flex-wrap items-end gap-4">
-              <div>
-                <label className="text-sm font-medium text-slate-700">Semana</label>
-                <input type="week" value={semana} disabled={verTodas}
-                  onChange={e => { setSemana(e.target.value); setBusquedaDetalle(''); }}
-                  className="mt-1 block rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40" />
-                {!verTodas && semanaInfo && <p className="mt-1 text-xs text-slate-500">{semanaInfo.label}</p>}
+            {/* Selector de semanas */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-slate-800">Semanas</span>
+                <div className="flex gap-2">
+                  <button onClick={() => setSemanasDetSelec(new Set(semanasDetDisp.map(s => semanaKey(s.numero, s.año))))}
+                    className="text-xs text-blue-600 hover:underline">Todas</button>
+                  <span className="text-slate-300">|</span>
+                  <button onClick={() => setSemanasDetSelec(new Set())}
+                    className="text-xs text-slate-500 hover:underline">Ninguna</button>
+                </div>
               </div>
-              <label className="flex items-center gap-2 cursor-pointer pb-1 whitespace-nowrap">
-                <input type="checkbox" checked={verTodas}
-                  onChange={e => { setVerTodas(e.target.checked); setBusquedaDetalle(''); }}
-                  className="w-4 h-4 rounded accent-blue-600" />
-                <span className="text-sm text-slate-600">Ver todas las semanas</span>
-              </label>
+              {loadingDetalle ? (
+                <p className="text-sm text-slate-400">Cargando...</p>
+              ) : semanasDetDisp.length === 0 ? (
+                <p className="text-sm text-slate-400">No hay semanas cargadas.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {semanasDetDisp.map(s => {
+                    const key = semanaKey(s.numero, s.año);
+                    const info = isoWeekToRange(key);
+                    const sel = semanasDetSelec.has(key);
+                    return (
+                      <button key={key}
+                        onClick={() => {
+                          const next = new Set(semanasDetSelec);
+                          sel ? next.delete(key) : next.add(key);
+                          setSemanasDetSelec(next);
+                        }}
+                        title={info.label}
+                        className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                          sel ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-slate-300 text-slate-600 hover:border-blue-400'
+                        }`}>
+                        {info.labelCorto}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
               <select value={catDetalle}
                 onChange={e => { setCatDetalle(e.target.value); setSubDetalle(''); }}
                 className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[160px]">
@@ -625,31 +655,37 @@ export function ConsumoSemanal() {
               <span className="text-xs text-slate-400 pb-1">
                 {loadingDetalle ? '...' : `${detallesFiltrados.length} productos`}
               </span>
-              {registrosDetalle.length > 0 && (
-                <button
-                  onClick={async () => {
-                    if (!semanaInfo) return;
-                    if (!confirm(`¿Eliminar todos los ${registrosDetalle.length} registros de ${semanaInfo.label}?`)) return;
-                    const { error } = await supabase
-                      .from('consumos_semanales')
-                      .delete()
-                      .eq('semana_numero', semanaInfo.numero)
-                      .eq('año', semanaInfo.año);
-                    if (error) { toast.error('Error al eliminar.'); return; }
-                    setRegistrosDetalle([]);
-                    toast.success(`Semana ${semanaInfo.label} eliminada.`);
-                  }}
-                  className="flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition"
-                >
-                  <Trash2 size={12} /> Eliminar semana completa
-                </button>
-              )}
+              {semanasDetSelec.size === 1 && (() => {
+                const [selKey] = [...semanasDetSelec];
+                const selInfo = isoWeekToRange(selKey);
+                const countSem = registrosDetalle.filter(r => semanaKey(r.semana_numero, r.año) === selKey).length;
+                return (
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`¿Eliminar los ${countSem} registros de ${selInfo.label}?`)) return;
+                      const { error } = await supabase
+                        .from('consumos_semanales')
+                        .delete()
+                        .eq('semana_numero', selInfo.numero)
+                        .eq('año', selInfo.año);
+                      if (error) { toast.error('Error al eliminar.'); return; }
+                      await cargarDetalle();
+                      toast.success(`Semana ${selInfo.label} eliminada.`);
+                    }}
+                    className="flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition"
+                  >
+                    <Trash2 size={12} /> Eliminar semana
+                  </button>
+                );
+              })()}
               <button
                 onClick={async () => {
                   if (!confirm('¿Eliminar TODOS los registros de todas las semanas? Esta acción no se puede deshacer.')) return;
                   const { error } = await supabase.from('consumos_semanales').delete().neq('id', '');
                   if (error) { toast.error('Error al eliminar.'); return; }
                   setRegistrosDetalle([]);
+                  setSemanasDetDisp([]);
+                  setSemanasDetSelec(new Set());
                   toast.success('Todos los registros eliminados.');
                 }}
                 className="flex items-center gap-1.5 rounded-xl border border-red-400 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition"
@@ -661,13 +697,13 @@ export function ConsumoSemanal() {
             {loadingDetalle ? (
               <p className="py-8 text-center text-slate-400">Cargando...</p>
             ) : detallesFiltrados.length === 0 ? (
-              <p className="py-8 text-center text-slate-400">No hay registros cargados{verTodas ? '.' : ' para esta semana.'}</p>
+              <p className="py-8 text-center text-slate-400">No hay registros para las semanas seleccionadas.</p>
             ) : (
               <div className="overflow-auto max-h-[60vh] rounded-xl border border-slate-200">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 sticky top-0">
                     <tr>
-                      {verTodas && <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">Semana</th>}
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">Semana</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 w-28">Código</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Producto</th>
                       <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 w-28">Cantidad</th>
@@ -677,11 +713,9 @@ export function ConsumoSemanal() {
                   <tbody className="divide-y divide-slate-100">
                     {detallesFiltrados.map(r => (
                       <tr key={r.id} className="hover:bg-slate-50">
-                        {verTodas && (
-                          <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">
-                            {isoWeekToRange(semanaKey(r.semana_numero, r.año)).labelCorto}
-                          </td>
-                        )}
+                        <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">
+                          {isoWeekToRange(semanaKey(r.semana_numero, r.año)).labelCorto}
+                        </td>
                         <td className="px-3 py-2 font-mono text-xs text-slate-600">{r.producto_code}</td>
                         <td className="px-3 py-2 text-slate-800">{r.producto_name}</td>
                         <td className="px-3 py-2 text-right font-mono text-slate-700">{r.cantidad_consumida.toLocaleString('es-CO')}</td>
