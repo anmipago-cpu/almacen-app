@@ -61,15 +61,21 @@ export function ConsumoSemanal() {
   const [semana, setSemana] = useState(getSemanaActual());
   const semanaInfo = semana ? isoWeekToRange(semana) : null;
 
-  // ── Filtros buscador (en tab cargar) ──
+  // Mapa código → categoría/subcategoría para filtrar en Detalle y Acumulado
+  const prodMap = useMemo(() => {
+    const m: Record<string, { category: string; subcategory: string }> = {};
+    productos.forEach(p => { m[p.code] = { category: p.category ?? '', subcategory: p.subcategory ?? '' }; });
+    return m;
+  }, [productos]);
+
+  // ── Filtros tab Cargar ──
   const [busqueda, setBusqueda]   = useState('');
   const [catFiltro, setCatFiltro] = useState('');
   const [subFiltro, setSubFiltro] = useState('');
 
-  const subcatsDisponibles = useMemo(() => {
-    if (!catFiltro) return [];
-    return Object.entries(SUBCATEGORIAS[catFiltro] || {}).map(([key, label]) => ({ key: `${catFiltro}:${key}`, label }));
-  }, [catFiltro]);
+  const subcatsCargar = useMemo(() =>
+    catFiltro ? Object.entries(SUBCATEGORIAS[catFiltro] || {}).map(([key, label]) => ({ key: `${catFiltro}:${key}`, label })) : []
+  , [catFiltro]);
 
   const productosFiltrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -80,6 +86,20 @@ export function ConsumoSemanal() {
       return matchCat && matchSub && matchText && p.active !== false;
     });
   }, [productos, catFiltro, subFiltro, busqueda]);
+
+  // ── Filtros tab Detalle ──
+  const [catDetalle, setCatDetalle] = useState('');
+  const [subDetalle, setSubDetalle] = useState('');
+  const subcatsDetalle = useMemo(() =>
+    catDetalle ? Object.entries(SUBCATEGORIAS[catDetalle] || {}).map(([key, label]) => ({ key: `${catDetalle}:${key}`, label })) : []
+  , [catDetalle]);
+
+  // ── Filtros tab Acumulado ──
+  const [catAcum, setCatAcum] = useState('');
+  const [subAcum, setSubAcum] = useState('');
+  const subcatsAcum = useMemo(() =>
+    catAcum ? Object.entries(SUBCATEGORIAS[catAcum] || {}).map(([key, label]) => ({ key: `${catAcum}:${key}`, label })) : []
+  , [catAcum]);
 
   // ── Upload ──
   const [fileName, setFileName]       = useState('');
@@ -126,11 +146,19 @@ export function ConsumoSemanal() {
 
   const detallesFiltrados = useMemo(() => {
     const q = busquedaDetalle.trim().toLowerCase();
-    if (!q) return registrosDetalle;
-    return registrosDetalle.filter(r =>
-      r.producto_code.toLowerCase().includes(q) || r.producto_name.toLowerCase().includes(q)
-    );
-  }, [registrosDetalle, busquedaDetalle]);
+    return registrosDetalle.filter(r => {
+      if (q && !r.producto_code.toLowerCase().includes(q) && !r.producto_name.toLowerCase().includes(q)) return false;
+      if (catDetalle) {
+        const p = prodMap[r.producto_code];
+        if (!p || p.category !== catDetalle) return false;
+      }
+      if (subDetalle) {
+        const p = prodMap[r.producto_code];
+        if (!p || `${p.category}:${p.subcategory}` !== subDetalle) return false;
+      }
+      return true;
+    });
+  }, [registrosDetalle, busquedaDetalle, catDetalle, subDetalle, prodMap]);
 
   async function eliminarRegistro(id: string) {
     const { error } = await supabase.from('consumos_semanales').delete().eq('id', id);
@@ -199,9 +227,18 @@ export function ConsumoSemanal() {
     });
 
     return [...byCode.entries()]
-      .filter(([code, { name }]) =>
-        !q || code.toLowerCase().includes(q) || name.toLowerCase().includes(q)
-      )
+      .filter(([code, { name }]) => {
+        if (q && !code.toLowerCase().includes(q) && !name.toLowerCase().includes(q)) return false;
+        if (catAcum) {
+          const p = prodMap[code];
+          if (!p || p.category !== catAcum) return false;
+        }
+        if (subAcum) {
+          const p = prodMap[code];
+          if (!p || `${p.category}:${p.subcategory}` !== subAcum) return false;
+        }
+        return true;
+      })
       .map(([code, { name, por_semana }]) => {
         const valores = semanasOrdenadas.map(s => por_semana.get(semanaKey(s.numero, s.año)) ?? 0);
         const conDato = valores.filter(v => v > 0);
@@ -211,7 +248,7 @@ export function ConsumoSemanal() {
         return { code, name, valores, promedio };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [todosAcumulado, semanasOrdenadas, semanasSelec, busquedaAcum]);
+  }, [todosAcumulado, semanasOrdenadas, semanasSelec, busquedaAcum, catAcum, subAcum, prodMap]);
 
   // ── Parsers ──────────────────────────────────────────────────────────────
 
@@ -429,37 +466,30 @@ export function ConsumoSemanal() {
           <Card className="mb-5">
             <div className="space-y-4">
               <h2 className="text-base font-semibold text-slate-800">Consultar productos por categoría</h2>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(CATEGORIAS).map(([code, cat]) => (
-                  <button key={code}
-                    onClick={() => { setCatFiltro(catFiltro === code ? '' : code); setSubFiltro(''); }}
-                    className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
-                      catFiltro === code
-                        ? `${cat.bg} ${cat.text} ${cat.border} border`
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
-                    }`}>
-                    {cat.label}
-                  </button>
-                ))}
-                {(catFiltro || busqueda) && (
+              <div className="flex flex-wrap gap-3 items-center">
+                <select value={catFiltro}
+                  onChange={e => { setCatFiltro(e.target.value); setSubFiltro(''); }}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px]">
+                  <option value="">Todas las categorías</option>
+                  {Object.entries(CATEGORIAS).map(([code, cat]) => (
+                    <option key={code} value={code}>{cat.label}</option>
+                  ))}
+                </select>
+                <select value={subFiltro} onChange={e => setSubFiltro(e.target.value)}
+                  disabled={!catFiltro}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px] disabled:opacity-50">
+                  <option value="">Todas las subcategorías</option>
+                  {subcatsCargar.map(s => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </select>
+                {(catFiltro || subFiltro || busqueda) && (
                   <button onClick={() => { setCatFiltro(''); setSubFiltro(''); setBusqueda(''); }}
-                    className="rounded-full px-3 py-1 text-xs font-medium bg-slate-100 text-slate-500 hover:bg-slate-200">
+                    className="rounded-xl px-3 py-2 text-xs font-medium bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200">
                     Limpiar
                   </button>
                 )}
               </div>
-              {subcatsDisponibles.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {subcatsDisponibles.map(s => (
-                    <button key={s.key} onClick={() => setSubFiltro(subFiltro === s.key ? '' : s.key)}
-                      className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
-                        subFiltro === s.key ? 'bg-slate-700 text-white border-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
-                      }`}>
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              )}
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-3 text-slate-400 pointer-events-none" />
                 <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
@@ -570,7 +600,23 @@ export function ConsumoSemanal() {
                   className="w-4 h-4 rounded accent-blue-600" />
                 <span className="text-sm text-slate-600">Ver todas las semanas</span>
               </label>
-              <div className="relative flex-1 min-w-[200px]">
+              <select value={catDetalle}
+                onChange={e => { setCatDetalle(e.target.value); setSubDetalle(''); }}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[160px]">
+                <option value="">Todas las categorías</option>
+                {Object.entries(CATEGORIAS).map(([code, cat]) => (
+                  <option key={code} value={code}>{cat.label}</option>
+                ))}
+              </select>
+              <select value={subDetalle} onChange={e => setSubDetalle(e.target.value)}
+                disabled={!catDetalle}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[160px] disabled:opacity-50">
+                <option value="">Todas las subcategorías</option>
+                {subcatsDetalle.map(s => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
+              <div className="relative flex-1 min-w-[180px]">
                 <Search size={14} className="absolute left-3 top-3 text-slate-400 pointer-events-none" />
                 <input value={busquedaDetalle} onChange={e => setBusquedaDetalle(e.target.value)}
                   placeholder="Buscar por código o nombre..."
@@ -706,8 +752,24 @@ export function ConsumoSemanal() {
           {/* Tabla acumulada */}
           <Card>
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="relative flex-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <select value={catAcum}
+                  onChange={e => { setCatAcum(e.target.value); setSubAcum(''); }}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[160px]">
+                  <option value="">Todas las categorías</option>
+                  {Object.entries(CATEGORIAS).map(([code, cat]) => (
+                    <option key={code} value={code}>{cat.label}</option>
+                  ))}
+                </select>
+                <select value={subAcum} onChange={e => setSubAcum(e.target.value)}
+                  disabled={!catAcum}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[160px] disabled:opacity-50">
+                  <option value="">Todas las subcategorías</option>
+                  {subcatsAcum.map(s => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </select>
+                <div className="relative flex-1 min-w-[180px]">
                   <Search size={14} className="absolute left-3 top-3 text-slate-400 pointer-events-none" />
                   <input value={busquedaAcum} onChange={e => setBusquedaAcum(e.target.value)}
                     placeholder="Buscar por código o nombre..."
