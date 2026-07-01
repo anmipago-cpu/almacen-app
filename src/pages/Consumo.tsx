@@ -191,9 +191,11 @@ export function Consumo() {
   }
 
   function getStockParaCalculo(): number {
-    if (lote && lotesDisponibles.length > 0) {
-      return lotesDisponibles.find(l => l.lote === lote)?.stock_base
-        ?? getStockActual(productoSel?.code ?? '');
+    if (lote) {
+      const lotInfo = lotesDisponibles.find(l => l.lote === lote);
+      if (lotInfo) return lotInfo.stock_base;
+      // Lote nuevo (no existe aún) → base 0; no usar stock total del producto
+      if (lotesDisponibles.length > 0) return 0;
     }
     return getStockActual(productoSel?.code ?? '');
   }
