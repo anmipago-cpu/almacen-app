@@ -1,0 +1,702 @@
+[
+  {
+    "id": "cc1205cc-a446-4523-98cc-338f83c221c5",
+    "producto_code": "SP-01-006",
+    "estado": "ROJO",
+    "stock_actual": 2750,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-13T18:22:39.084265+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "3941f627-10c4-426e-8e15-4af3a3bece13",
+    "producto_code": "SP-02-008",
+    "estado": "AGOTADO",
+    "stock_actual": 0,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-15T14:18:04.654395+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "59580216-814b-430b-b87f-5b1ae68c6857",
+    "producto_code": "SP-02-037",
+    "estado": "AGOTADO",
+    "stock_actual": 0,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-15T14:18:13.369858+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "41495ace-cc88-4fe3-b777-2020c45bf54d",
+    "producto_code": "PP-02-012",
+    "estado": "ROJO",
+    "stock_actual": 9000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-15T14:18:25.836728+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "d40c0921-8a37-4c61-a43a-3504675a70d6",
+    "producto_code": "SP-02-052",
+    "estado": "AMARILLO",
+    "stock_actual": 1930,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-15T21:11:15.485219+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "6dd6dad1-3ab9-4a09-93c3-d3371332cdcc",
+    "producto_code": "SP-03-002",
+    "estado": "AMARILLO",
+    "stock_actual": 96,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-15T21:11:16.807524+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "c1394a74-f018-4391-902b-bd2703cabb4f",
+    "producto_code": "SF-01-010",
+    "estado": "AMARILLO",
+    "stock_actual": 1000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-15T21:13:08.713782+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "4eab4ac5-eee4-4adb-ad87-b16ece786e5c",
+    "producto_code": "IN-01-004",
+    "estado": "ROJO",
+    "stock_actual": 160,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-16T12:54:43.338473+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "cab4d744-d034-42f2-b28f-88cd1b1c05d9",
+    "producto_code": "IN-01-003",
+    "estado": "ROJO",
+    "stock_actual": 700,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-16T12:54:50.581797+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "2d06814f-4b27-43a0-bcb9-a471b7096535",
+    "producto_code": "SP-01-007",
+    "estado": "ROJO",
+    "stock_actual": 1875,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-16T12:54:56.825233+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "9aa1cccb-fa0c-4589-b411-edbd86f48424",
+    "producto_code": "SP-03-004",
+    "estado": "ROJO",
+    "stock_actual": 17,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-16T20:34:43.045824+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "73c3d719-85bb-45c1-85a5-e9fd92380b07",
+    "producto_code": "SP-02-002",
+    "estado": "AMARILLO",
+    "stock_actual": 370,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-17T15:28:25.149051+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "adc44e50-a790-4d56-a0c4-8284fcbcbc67",
+    "producto_code": "PP-01-017",
+    "estado": "AMARILLO",
+    "stock_actual": 9000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-17T15:33:45.757112+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "7d625a29-1c40-4bc0-8ec5-67a6d8980872",
+    "producto_code": "PP-01-017",
+    "estado": "ROJO",
+    "stock_actual": 9000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-17T15:39:43.403232+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "5bd631af-bb4d-4508-90d9-fbd76fddcf82",
+    "producto_code": "SF-01-010",
+    "estado": "ROJO",
+    "stock_actual": 500,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-17T15:39:53.702504+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "38dc020e-b0de-44c6-a993-8f265283ace6",
+    "producto_code": "PP-02-005",
+    "estado": "ROJO",
+    "stock_actual": 500,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-19T11:26:12.112703+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "717c41a5-748f-4b76-8655-8491fb7f6798",
+    "producto_code": "PP-01-002",
+    "estado": "AMARILLO",
+    "stock_actual": 250,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-19T12:19:37.266+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "2f7165aa-39ed-425a-810a-b2750142c252",
+    "producto_code": "PP-02-010",
+    "estado": "AMARILLO",
+    "stock_actual": 200,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-19T12:19:46.439359+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "5221d3c9-83e6-49ce-8729-ebc23e953576",
+    "producto_code": "IN-01-002",
+    "estado": "ROJO",
+    "stock_actual": 196,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-19T12:20:49.33706+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "80df95b0-1a6d-49fd-bdc3-37a48632e97e",
+    "producto_code": "UT-01-001",
+    "estado": "AMARILLO",
+    "stock_actual": 9000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-25T20:30:50.481672+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "5e2e8fd7-534a-423f-be54-343f58243cbd",
+    "producto_code": "LB-01-020",
+    "estado": "ROJO",
+    "stock_actual": 0.3,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-25T20:44:12.514211+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "a6bea631-4d5c-49fa-b75e-975f8484c8a6",
+    "producto_code": "LB-01-004",
+    "estado": "AMARILLO",
+    "stock_actual": 35,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-25T20:44:35.3979+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "822f1507-9cd0-4535-99f5-96e49a1cfac6",
+    "producto_code": "LB-01-013",
+    "estado": "AMARILLO",
+    "stock_actual": 500,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-25T20:44:47.539112+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "333b9457-3cf4-4c3b-9fd7-ab03bfa98239",
+    "producto_code": "SP-01-011",
+    "estado": "AMARILLO",
+    "stock_actual": 1600,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-25T20:54:16.224317+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "e9f6404d-a17f-4f0a-9f2a-c224b082c85a",
+    "producto_code": "SP-01-011",
+    "estado": "ROJO",
+    "stock_actual": 1600,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-26T12:21:52.353673+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "0206c550-e0be-4e4b-afb5-c6ff667ac670",
+    "producto_code": "SF-01-002",
+    "estado": "ROJO",
+    "stock_actual": 100,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-26T14:01:57.740368+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "dcb40ded-8f2f-49aa-baa4-357afae306df",
+    "producto_code": "SF-01-003",
+    "estado": "ROJO",
+    "stock_actual": 1000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-26T14:02:10.62156+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "6c370293-6f1f-4ea8-aab4-78f81ef7ea8f",
+    "producto_code": "SF-01-004",
+    "estado": "AMARILLO",
+    "stock_actual": 2000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-26T14:02:26.72805+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "7cbf2239-afff-4060-8167-cce435814a0f",
+    "producto_code": "AD-01-002",
+    "estado": "AMARILLO",
+    "stock_actual": 55,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-26T14:10:18.418155+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "390b80af-a60b-4780-9139-4e7d1fe240a2",
+    "producto_code": "IN-01-007",
+    "estado": "ROJO",
+    "stock_actual": 88,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-26T14:10:47.00618+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "0b23425d-6bcc-4bbb-acca-be5cb44e887f",
+    "producto_code": "CH-01-002",
+    "estado": "ROJO",
+    "stock_actual": 27.5,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-27T16:17:13.641955+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "52278200-491e-48fc-8713-14618d69e492",
+    "producto_code": "PP-01-021",
+    "estado": "AMARILLO",
+    "stock_actual": 500,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-27T16:18:23.936966+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "5ed12f06-caa0-401c-8208-301e2ef7a143",
+    "producto_code": "SP-01-002",
+    "estado": "AMARILLO",
+    "stock_actual": 175,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-27T16:53:38.240353+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "4096471c-6839-42a8-9cee-b9f2c588fd5a",
+    "producto_code": "AD-01-002",
+    "estado": "AMARILLO",
+    "stock_actual": 55.0,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:49.228857+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "a76c5654-5eae-44f0-9927-18b4219fade7",
+    "producto_code": "CH-01-002",
+    "estado": "ROJO",
+    "stock_actual": 27.5,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:49.36653+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "1e271cd6-43e8-443f-98e3-46708c372e7f",
+    "producto_code": "IN-01-002",
+    "estado": "AMARILLO",
+    "stock_actual": 294,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:49.636833+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "b5702e50-c277-4624-9228-913f041413c5",
+    "producto_code": "IN-01-003",
+    "estado": "ROJO",
+    "stock_actual": 481,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:49.7775+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "aa954cdf-498b-4430-a474-b9e3714731d3",
+    "producto_code": "IN-01-004",
+    "estado": "ROJO",
+    "stock_actual": 70,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:50.004808+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "e379f27c-a508-4f68-b66c-cea9e34e19dc",
+    "producto_code": "IN-01-007",
+    "estado": "AGOTADO",
+    "stock_actual": 0,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:50.226127+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "9dc4b414-2064-4c40-9bfa-9884bb019fbf",
+    "producto_code": "LB-01-004",
+    "estado": "AMARILLO",
+    "stock_actual": 35,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:50.480132+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "a3f5fe1c-6e90-4a56-a8c3-81bcb1910905",
+    "producto_code": "LB-01-020",
+    "estado": "ROJO",
+    "stock_actual": 0.3,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:50.619952+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "43a8446a-e1f1-433d-972d-247d83e5ee3d",
+    "producto_code": "PP-01-017",
+    "estado": "ROJO",
+    "stock_actual": 1000,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:50.894819+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "cb73d2fe-48f0-44b8-a615-2a71f36c1ee6",
+    "producto_code": "PP-01-021",
+    "estado": "AMARILLO",
+    "stock_actual": 500,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:51.026327+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "2a93ad22-d0ad-428b-a116-6fcc8e842676",
+    "producto_code": "PP-02-005",
+    "estado": "ROJO",
+    "stock_actual": 1000,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:51.241616+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "d766747d-357c-4525-8def-ac6fd92b2141",
+    "producto_code": "PP-02-012",
+    "estado": "AMARILLO",
+    "stock_actual": 16800,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:51.359729+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "15856fd1-9b09-46eb-804a-1b01c4c537f2",
+    "producto_code": "SF-01-001",
+    "estado": "AGOTADO",
+    "stock_actual": 0,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:51.489364+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "bd937f00-b654-41cc-b778-4557623f7c6a",
+    "producto_code": "SF-01-003",
+    "estado": "ROJO",
+    "stock_actual": 1000,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:51.596085+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "724fcb6d-6942-4f20-aaf9-7a46d25b4cb1",
+    "producto_code": "SF-01-004",
+    "estado": "AMARILLO",
+    "stock_actual": 2000,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:51.735932+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "0e12ba18-dedb-4208-8f17-f091627b6366",
+    "producto_code": "SF-01-005",
+    "estado": "AGOTADO",
+    "stock_actual": 0,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:51.837501+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "68f44dc3-ec10-41b7-abfa-ec69c4c344da",
+    "producto_code": "SP-01-002",
+    "estado": "AMARILLO",
+    "stock_actual": 175,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:52.086678+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "1e2e26b1-8418-475e-9757-92c79e54d459",
+    "producto_code": "SP-01-006",
+    "estado": "ROJO",
+    "stock_actual": 750,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:52.251882+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "6f36ff8d-26cb-4e9b-9eb5-ec5124b15f77",
+    "producto_code": "SP-01-007",
+    "estado": "ROJO",
+    "stock_actual": 937.5,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:52.349861+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "61497d71-7e10-4c17-b507-ebfd0a3356c4",
+    "producto_code": "SP-01-011",
+    "estado": "ROJO",
+    "stock_actual": 1600,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:52.451328+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "10d466bb-cd46-49f6-a0a5-c9f3ca6a6e8b",
+    "producto_code": "SP-02-002",
+    "estado": "AMARILLO",
+    "stock_actual": 370,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:52.565128+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "dd5b9e70-0555-4558-9946-b58e20aa4d33",
+    "producto_code": "SP-02-031",
+    "estado": "AGOTADO",
+    "stock_actual": 0,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:52.687483+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "8522e268-f5dd-44f0-9f33-c4af0198e0fd",
+    "producto_code": "SP-02-037",
+    "estado": "AGOTADO",
+    "stock_actual": 0,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:52.80274+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "526479a5-f26d-4641-a986-0462b3e15d73",
+    "producto_code": "SP-03-004",
+    "estado": "ROJO",
+    "stock_actual": 32,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:52.925115+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "5c6a8d00-8bfc-4bef-9176-a96c8875f615",
+    "producto_code": "UT-01-001",
+    "estado": "AMARILLO",
+    "stock_actual": 9000,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-29T20:12:53.077001+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "4fdb55ae-92bd-4ad8-863d-65efaa966173",
+    "producto_code": "PP-01-007",
+    "estado": "AMARILLO",
+    "stock_actual": 58500,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-30T13:25:18.492925+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "5f7c32d3-2e88-4d5f-a85d-513b4953331e",
+    "producto_code": "PP-02-005",
+    "estado": "VERDE",
+    "stock_actual": 8000,
+    "informado_a": "SISTEMA",
+    "notas": "Recuperado",
+    "created_at": "2026-06-30T13:25:18.636438+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "290ad83a-edb8-46d4-8fb1-06e22e5841e5",
+    "producto_code": "PP-01-007",
+    "estado": "AMARILLO",
+    "stock_actual": 57000,
+    "informado_a": null,
+    "notas": null,
+    "created_at": "2026-06-30T15:51:55.741337+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "3a08bd70-3ae8-46cf-8cb7-2a5cdc1370a0",
+    "producto_code": "PP-01-021",
+    "estado": "VERDE",
+    "stock_actual": 2000,
+    "informado_a": "SISTEMA",
+    "notas": "Recuperado",
+    "created_at": "2026-06-30T16:03:54.668134+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "1fd230a8-6ad8-40e1-b8b0-9a64440d4588",
+    "producto_code": "SF-01-003",
+    "estado": "VERDE",
+    "stock_actual": 4000,
+    "informado_a": "SISTEMA",
+    "notas": "Recuperado",
+    "created_at": "2026-06-30T16:03:54.760854+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "f888c0bb-a62a-487f-a010-ff84b3707ed3",
+    "producto_code": "SP-01-007",
+    "estado": "VERDE",
+    "stock_actual": 3937.5,
+    "informado_a": "SISTEMA",
+    "notas": "Recuperado",
+    "created_at": "2026-06-30T16:03:54.9136+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "2b65446a-61ac-4902-9b66-605a0f3f44e3",
+    "producto_code": "CL-01-005",
+    "estado": "AGOTADO",
+    "stock_actual": 0,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-30T18:18:54.502084+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "75c9d4fb-a99c-4f39-b6a1-b477158eed37",
+    "producto_code": "CL-01-006",
+    "estado": "AGOTADO",
+    "stock_actual": 0,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-30T18:18:54.894988+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "61fb5566-8f6a-4795-9577-744ca61b95e6",
+    "producto_code": "IN-01-006",
+    "estado": "AMARILLO",
+    "stock_actual": 96,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-30T18:18:55.247377+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "574b87fb-26f4-4d21-9f34-8ac3f44ec593",
+    "producto_code": "MS-01-004",
+    "estado": "AGOTADO",
+    "stock_actual": 0,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-30T18:18:55.417061+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "0c8b56be-2661-4464-9c0c-1c28907c03a6",
+    "producto_code": "MS-01-005",
+    "estado": "AGOTADO",
+    "stock_actual": 0,
+    "informado_a": "SISTEMA",
+    "notas": "Auto-notificado",
+    "created_at": "2026-06-30T18:18:55.59108+00:00",
+    "adjunto_url": null
+  },
+  {
+    "id": "8b92ae07-0b52-4044-92fe-d0353e6c492d",
+    "producto_code": "PP-01-007",
+    "estado": "VERDE",
+    "stock_actual": 57000,
+    "informado_a": "SISTEMA",
+    "notas": "Recuperado",
+    "created_at": "2026-06-30T20:28:50.183921+00:00",
+    "adjunto_url": null
+  }
+]
