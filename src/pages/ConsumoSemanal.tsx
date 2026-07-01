@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { supabase } from '../lib/supabase';
 import { useProductos } from '../hooks/useProductos';
+import { useAuth } from '../context/AuthContext';
 import { CATEGORIAS, SUBCATEGORIAS } from '../types';
 import * as XLSX from 'xlsx';
 import type { ConsumoSemanal as ConsumoSemanalType } from '../types';
@@ -54,8 +55,10 @@ interface PendingUpload {
 
 export function ConsumoSemanal() {
   const { productos } = useProductos();
+  const { profile } = useAuth();
+  const soloLectura = profile?.rol === 'consulta';
 
-  const [tab, setTab] = useState<'cargar' | 'detalle' | 'acumulado'>('cargar');
+  const [tab, setTab] = useState<'cargar' | 'detalle' | 'acumulado'>(soloLectura ? 'acumulado' : 'cargar');
 
   // ── Semana activa (carga + detalle) ──
   const [semana, setSemana] = useState(getSemanaActual());
@@ -445,10 +448,10 @@ export function ConsumoSemanal() {
       {/* Tabs */}
       <div className="flex gap-1 mb-5 border-b border-slate-200">
         {([
-          { id: 'cargar',    label: 'Cargar archivo' },
-          { id: 'detalle',   label: 'Detalle por semana' },
-          { id: 'acumulado', label: 'Acumulado / Promedio' },
-        ] as const).map(t => (
+          { id: 'cargar',    label: 'Cargar archivo',      hidden: soloLectura },
+          { id: 'detalle',   label: 'Detalle por semana',  hidden: soloLectura },
+          { id: 'acumulado', label: 'Acumulado / Promedio', hidden: false },
+        ] as const).filter(t => !t.hidden).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               tab === t.id
