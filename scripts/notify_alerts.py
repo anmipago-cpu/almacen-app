@@ -1,8 +1,7 @@
 """
-Notificaciones automáticas de alarmas de stock.
-Corre diariamente via GitHub Actions.
-- Envía WhatsApp cuando un producto EMPEORA de estado.
-- Los lunes envía resumen completo de alarmas activas por criticidad.
+Resumen semanal de alarmas de stock — corre los lunes a las 8 AM Colombia.
+Solo envía alarmas activas que NO han sido informadas manualmente en la app.
+La detección de cambios en tiempo real la maneja api/alarm-check.ts (Vercel).
 """
 import os, time, requests
 from datetime import datetime, timezone
@@ -26,13 +25,6 @@ def sb_get(table, params=''):
     r = requests.get(f'{SUPABASE_URL}/rest/v1/{table}?{params}', headers=HEADERS, timeout=30)
     r.raise_for_status()
     return r.json()
-
-
-def sb_post(table, data):
-    r = requests.post(f'{SUPABASE_URL}/rest/v1/{table}',
-                      headers={**HEADERS, 'Prefer': 'return=minimal'},
-                      json=data, timeout=30)
-    r.raise_for_status()
 
 
 def get_estado(item):
@@ -100,17 +92,13 @@ def send_whatsapp(msg):
 
 
 def main():
-    hoy      = datetime.now(timezone.utc)
-    es_lunes = hoy.weekday() == 0
-    hoy_str  = hoy.strftime('%d/%m/%Y')
+    hoy_str = datetime.now(timezone.utc).strftime('%d/%m/%Y')
+    print(f'Resumen semanal de alarmas – {hoy_str}')
 
-    print(f'Iniciando notificaciones – {hoy_str} (lunes={es_lunes})')
-
-    # 1. Inventario con umbrales configurados
+    # Inventario con umbrales configurados
     items = sb_get('inventario_actual',
                    'select=code,name,category,stock_actual,stock_min,stock_bajo,'
                    'lead_time_semanas,promedio_consumo_semanal')
-    # Conservar items con cualquier configuración de alarma: thresholds o lead_time+promedio
     items = [i for i in items if
              i.get('stock_min') is not None or i.get('stock_bajo') is not None or
              ((i.get('lead_time_semanas') or 0) > 0 and (i.get('promedio_consumo_semanal') or 0) > 0)]
@@ -118,72 +106,27 @@ def main():
         item['_estado'] = get_estado(item)
     print(f'  {len(items)} productos configurados')
 
-    # 2. Último estado notificado por el sistema
-    gestiones = sb_get('alertas_gestion',
-                        'select=producto_code,estado,created_at'
-                        '&informado_a=eq.SISTEMA&order=created_at.desc')
-    ultima_sistema = {}
-    for g in gestiones:
-        if g['producto_code'] not in ultima_sistema:
-            ultima_sistema[g['producto_code']] = g['estado']
+    # Productos que YA fueron informados manualmente en la app (clic en "Informar")
+    gestiones_manual = sb_get('alertas_gestion',
+                               'select=producto_code'
+                               '&informado_a=neq.SISTEMA'
+                               '&informado_a=not.is.null')
+    ya_informados = {g['producto_code'] for g in gestiones_manual}
 
-    # 3. Detectar cambios de estado
-    to_notify  = []
-    to_register = []
+    # Solo alarmas activas que nadie ha gestionado aún
+    sin_gestionar = sorted(
+        [i for i in items if i['_estado'] != 'VERDE' and i['code'] not in ya_informados],
+        key=lambda x: -SEVERIDAD.get(x['_estado'], 0)
+    )
 
-    for item in items:
-        estado_actual = item['_estado']
-        estado_previo = ultima_sistema.get(item['code'], 'VERDE')
-        sev_actual    = SEVERIDAD.get(estado_actual, 0)
-        sev_previo    = SEVERIDAD.get(estado_previo, 0)
-
-        if sev_actual != sev_previo:
-            to_register.append({
-                'producto_code': item['code'],
-                'estado':        estado_actual,
-                'stock_actual':  item.get('stock_actual', 0),
-                'informado_a':   'SISTEMA',
-                'notas':         'Auto-notificado' if sev_actual > sev_previo else 'Recuperado',
-            })
-            if sev_actual > sev_previo:
-                to_notify.append(item)
-
-    # 4. Notificar cambios de estado
-    if to_notify:
-        msg = build_msg(to_notify, '🚨 *ALERTA DE STOCK*', hoy_str)
-        print(f'  Enviando alerta: {len(to_notify)} productos')
+    if sin_gestionar:
+        msg = build_msg(sin_gestionar, '📋 *RESUMEN SEMANAL – PENDIENTES*', hoy_str)
+        print(f'  Enviando resumen: {len(sin_gestionar)} productos sin gestionar')
         send_whatsapp(msg)
     else:
-        print('  Sin cambios de estado – no se envía alerta')
+        print('  Todas las alarmas activas ya fueron gestionadas – no se envía resumen')
 
-    # 5. Resumen de los lunes — solo alarmas que nadie ha informado manualmente
-    if es_lunes:
-        # Productos que tienen al menos un registro manual (informado_a != 'SISTEMA')
-        gestiones_manual = sb_get('alertas_gestion',
-                                  'select=producto_code'
-                                  '&informado_a=neq.SISTEMA'
-                                  '&informado_a=not.is.null')
-        ya_informados = {g['producto_code'] for g in gestiones_manual}
-
-        activos = sorted(
-            [i for i in items if i['_estado'] != 'VERDE' and i['code'] not in ya_informados],
-            key=lambda x: -SEVERIDAD.get(x['_estado'], 0)
-        )
-        if activos:
-            msg = build_msg(activos, '📋 *RESUMEN SEMANAL – SIN GESTIONAR*', hoy_str)
-            print(f'  Enviando resumen lunes: {len(activos)} productos sin gestionar')
-            send_whatsapp(msg)
-        else:
-            print('  Resumen lunes: todas las alarmas activas ya fueron informadas')
-
-    # 6. Registrar nuevos estados en alertas_gestion
-    for record in to_register:
-        try:
-            sb_post('alertas_gestion', record)
-        except Exception as e:
-            print(f'  Error registrando {record["producto_code"]}: {e}')
-
-    print(f'Finalizado. Cambios registrados: {len(to_register)}')
+    print('Finalizado.')
 
 
 if __name__ == '__main__':
