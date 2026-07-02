@@ -128,9 +128,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         estado: estadoActual,
         stock_actual: item.stock_actual,
         informado_a: 'SISTEMA',
-        notas: sevActual > sevPrevio ? 'Auto-notificado' : 'Recuperado',
+        notas: sevActual > sevPrevio ? 'Auto-notificado' : sevActual === 0 ? 'Recuperado' : 'Mejoró pero sigue en alarma',
       });
-      if (sevActual > sevPrevio) empeorados.push(item);
+      // Notificar si el estado actual sigue siendo no-VERDE (aunque haya mejorado)
+      if (estadoActual !== 'VERDE') empeorados.push(item);
     }
   }
 
