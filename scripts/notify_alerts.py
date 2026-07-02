@@ -39,9 +39,20 @@ def get_estado(item):
     stock      = item.get('stock_actual', 0) or 0
     stock_min  = item.get('stock_min',    0) or 0
     stock_bajo = item.get('stock_bajo',   0) or 0
-    if stock <= 0:          return 'AGOTADO'
-    if stock <= stock_min:  return 'ROJO'
-    if stock <= stock_bajo: return 'AMARILLO'
+    lead_time  = item.get('lead_time_semanas') or 0
+    promedio   = item.get('promedio_consumo_semanal', 0) or 0
+
+    if stock <= 0: return 'AGOTADO'
+
+    # Misma lógica que getSemaforo() en el frontend
+    if lead_time > 0 and promedio > 0:
+        semanas = stock / promedio
+        if semanas <= lead_time:     return 'ROJO'
+        if semanas <= lead_time + 1: return 'AMARILLO'
+        return 'VERDE'
+
+    if stock_min > 0 and stock <= stock_min:  return 'ROJO'
+    if stock_bajo > 0 and stock <= stock_bajo: return 'AMARILLO'
     return 'VERDE'
 
 
@@ -98,9 +109,11 @@ def main():
     # 1. Inventario con umbrales configurados
     items = sb_get('inventario_actual',
                    'select=code,name,category,stock_actual,stock_min,stock_bajo,'
-                   'lead_time_semanas,promedio_consumo_semanal'
-                   '&lead_time_semanas=not.is.null')
-    items = [i for i in items if i.get('stock_min') is not None or i.get('stock_bajo') is not None]
+                   'lead_time_semanas,promedio_consumo_semanal')
+    # Conservar items con cualquier configuración de alarma: thresholds o lead_time+promedio
+    items = [i for i in items if
+             i.get('stock_min') is not None or i.get('stock_bajo') is not None or
+             ((i.get('lead_time_semanas') or 0) > 0 and (i.get('promedio_consumo_semanal') or 0) > 0)]
     for item in items:
         item['_estado'] = get_estado(item)
     print(f'  {len(items)} productos configurados')
