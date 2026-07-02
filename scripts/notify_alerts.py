@@ -156,18 +156,25 @@ def main():
     else:
         print('  Sin cambios de estado – no se envía alerta')
 
-    # 5. Resumen de los lunes
+    # 5. Resumen de los lunes — solo alarmas que nadie ha informado manualmente
     if es_lunes:
+        # Productos que tienen al menos un registro manual (informado_a != 'SISTEMA')
+        gestiones_manual = sb_get('alertas_gestion',
+                                  'select=producto_code'
+                                  '&informado_a=neq.SISTEMA'
+                                  '&informado_a=not.is.null')
+        ya_informados = {g['producto_code'] for g in gestiones_manual}
+
         activos = sorted(
-            [i for i in items if i['_estado'] != 'VERDE'],
+            [i for i in items if i['_estado'] != 'VERDE' and i['code'] not in ya_informados],
             key=lambda x: -SEVERIDAD.get(x['_estado'], 0)
         )
         if activos:
-            msg = build_msg(activos, '📋 *RESUMEN SEMANAL DE ALARMAS*', hoy_str)
-            print(f'  Enviando resumen lunes: {len(activos)} productos activos')
+            msg = build_msg(activos, '📋 *RESUMEN SEMANAL – SIN GESTIONAR*', hoy_str)
+            print(f'  Enviando resumen lunes: {len(activos)} productos sin gestionar')
             send_whatsapp(msg)
         else:
-            print('  Resumen lunes: sin alarmas activas')
+            print('  Resumen lunes: todas las alarmas activas ya fueron informadas')
 
     # 6. Registrar nuevos estados en alertas_gestion
     for record in to_register:

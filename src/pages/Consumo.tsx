@@ -69,6 +69,14 @@ function isoWeekToRange(weekStr: string): { inicio: string; fin: string; label: 
 
 let _lineaId = 0;
 
+function checkAlarms(codes: string[]) {
+  if (!codes.length) return;
+  fetch('/api/alarm-check', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codes: [...new Set(codes)] }),
+  }).catch(() => {});
+}
+
 export function Consumo() {
   const { productos, loading: loadingProd } = useProductos();
   const { inventario } = useInventario();
@@ -291,6 +299,7 @@ export function Consumo() {
       const { error } = await supabase.from('recepciones').insert(payload);
       if (error) throw error;
       toast.success(`${lineas.length} consumo${lineas.length > 1 ? 's' : ''} registrado${lineas.length > 1 ? 's' : ''}`);
+      checkAlarms(lineas.map(l => l.producto.code));
       setLineas([]);
       cargarHistorial();
     } catch (e: unknown) {
@@ -386,6 +395,7 @@ export function Consumo() {
       const { error } = await supabase.from('recepciones').insert(payload);
       if (error) throw error;
       toast.success(`${payload.length} consumos importados`);
+      checkAlarms(payload.map(p => p.producto_code).filter(Boolean) as string[]);
       setBulkItems([]);
       setBulkErrors([]);
       cargarHistorial();

@@ -66,6 +66,14 @@ export function Recepcion() {
   const [fechaDesdeHistorial, setFechaDesdeHistorial] = useState('');
   const [fechaHastaHistorial, setFechaHastaHistorial] = useState('');
 
+  function checkAlarms(codes: string[]) {
+    if (!codes.length) return;
+    fetch('/api/alarm-check', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codes: [...new Set(codes)] }),
+    }).catch(() => {});
+  }
+
   // Edición/eliminación inline
   const [historialLocal, setHistorialLocal] = useState<Registro[]>([]);
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -196,6 +204,7 @@ export function Recepcion() {
       });
 
       toast.success(`Recepción guardada: ${productoSeleccionado.name} — ${formatNumero(totalUnidades)} ${productoSeleccionado.unit_base || productoSeleccionado.unit || 'unidades'}`);
+      checkAlarms([productoSeleccionado.code]);
       limpiarFormulario();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Error al guardar la recepción');
@@ -325,6 +334,7 @@ export function Recepcion() {
       const { error } = await supabase.from('recepciones').insert(payload);
       if (error) throw error;
       toast.success(`${payload.length} recepciones importadas correctamente.`);
+      checkAlarms(payload.map(p => p.producto_code).filter(Boolean) as string[]);
       setBulkItems([]);
       setBulkName('');
       setBulkErrors([]);
