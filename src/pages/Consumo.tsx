@@ -168,17 +168,28 @@ export function Consumo() {
     setLotesDisponibles([]);
     const { data } = await supabase
       .from('recepciones')
-      .select('lote, tipo, total_unidades_base')
+      .select('lote, tipo, total_unidades_base, created_at')
       .eq('producto_code', productoCode)
-      .not('lote', 'is', null);
+      .not('lote', 'is', null)
+      .order('created_at', { ascending: true }); // cronológico para detectar nuevos lotes
     if (data) {
       const map = new Map<string, number>();
       data.forEach(r => {
         const key = r.lote as string;
-        const delta = (!r.tipo || r.tipo === 'RECEPCION' || r.tipo === 'DEVOLUCION')
-          ? (r.total_unidades_base || 0)
-          : -(r.total_unidades_base || 0);
-        map.set(key, (map.get(key) || 0) + delta);
+        const amount = r.total_unidades_base || 0;
+        const isRecepcion = !r.tipo || r.tipo === 'RECEPCION';
+
+        if (isRecepcion) {
+          const actual = map.get(key) ?? 0;
+          // Si el lote estaba en 0 o negativo, esta es una nueva entrega → reinicia
+          // Si aún tiene stock positivo, suma (misma entrega partida en varios registros)
+          map.set(key, actual <= 0 ? amount : actual + amount);
+        } else if (r.tipo === 'DEVOLUCION') {
+          map.set(key, (map.get(key) ?? 0) + amount);
+        } else {
+          // CONSUMO / AJUSTE → descuenta
+          map.set(key, (map.get(key) ?? 0) - amount);
+        }
       });
       setLotesDisponibles(
         Array.from(map.entries())

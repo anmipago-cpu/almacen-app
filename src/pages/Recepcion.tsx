@@ -111,6 +111,9 @@ export function Recepcion() {
   }
 
   const historialFiltrado = historialLocal.filter(rec => {
+    // Solo mostrar recepciones y devoluciones; los ajustes y consumos van en Consumo
+    const tipoValido = !rec.tipo || rec.tipo === 'RECEPCION' || rec.tipo === 'DEVOLUCION';
+    if (!tipoValido) return false;
     const q = busquedaHistorial.toLowerCase();
     const matchText = !busquedaHistorial ||
       rec.producto_code.toLowerCase().includes(q) ||
