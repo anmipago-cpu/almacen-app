@@ -106,25 +106,18 @@ def main():
         item['_estado'] = get_estado(item)
     print(f'  {len(items)} productos configurados')
 
-    # Productos que YA fueron informados manualmente en la app (clic en "Informar")
-    gestiones_manual = sb_get('alertas_gestion',
-                               'select=producto_code'
-                               '&informado_a=neq.SISTEMA'
-                               '&informado_a=not.is.null')
-    ya_informados = {g['producto_code'] for g in gestiones_manual}
-
-    # Solo alarmas activas que nadie ha gestionado aún
-    sin_gestionar = sorted(
-        [i for i in items if i['_estado'] != 'VERDE' and i['code'] not in ya_informados],
+    # Todas las alarmas activas (sin importar si fueron informadas o no)
+    activos = sorted(
+        [i for i in items if i['_estado'] != 'VERDE'],
         key=lambda x: -SEVERIDAD.get(x['_estado'], 0)
     )
 
-    if sin_gestionar:
-        msg = build_msg(sin_gestionar, '📋 *RESUMEN SEMANAL – PENDIENTES*', hoy_str)
-        print(f'  Enviando resumen: {len(sin_gestionar)} productos sin gestionar')
+    if activos:
+        msg = build_msg(activos, '📋 *RESUMEN SEMANAL DE ALARMAS*', hoy_str)
+        print(f'  Enviando resumen: {len(activos)} productos en alarma')
         send_whatsapp(msg)
     else:
-        print('  Todas las alarmas activas ya fueron gestionadas – no se envía resumen')
+        print('  Sin alarmas activas – no se envía resumen')
 
     print('Finalizado.')
 
