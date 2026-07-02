@@ -87,14 +87,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const codes: string[] = (req.body?.codes ?? []).filter(Boolean);
   if (!codes.length) return res.status(400).json({ error: 'Sin códigos' });
 
-  const codesParam = codes.map(c => `"${c}"`).join(',');
+  console.log('[alarm-check] códigos recibidos:', codes);
 
-  const [items, gestiones]: [InvItem[], { producto_code: string; estado: string }[]] = await Promise.all([
-    sbGet(url, key,
-      `inventario_actual?select=code,name,stock_actual,stock_min,stock_bajo,lead_time_semanas,promedio_consumo_semanal&code=in.(${codesParam})`),
-    sbGet(url, key,
-      `alertas_gestion?select=producto_code,estado&informado_a=eq.SISTEMA&producto_code=in.(${codesParam})&order=created_at.desc`),
-  ]);
+  const codesParam = codes.join(','); // PostgREST no necesita comillas para strings simples
+
+  let items: InvItem[] = [];
+  let gestiones: { producto_code: string; estado: string }[] = [];
+  try {
+    [items, gestiones] = await Promise.all([
+      sbGet(url, key,
+        `inventario_actual?select=code,name,stock_actual,stock_min,stock_bajo,lead_time_semanas,promedio_consumo_semanal&code=in.(${codesParam})`),
+      sbGet(url, key,
+        `alertas_gestion?select=producto_code,estado&informado_a=eq.SISTEMA&producto_code=in.(${codesParam})&order=created_at.desc`),
+    ]);
+  } catch (e) {
+    console.error('[alarm-check] error consultando Supabase:', e);
+    return res.status(500).json({ error: String(e) });
+  }
+
+  console.log('[alarm-check] items encontrados:', items.length, '| gestiones previas:', gestiones.length);
 
   // Último estado SISTEMA por producto
   const ultimoEstado: Record<string, string> = {};
@@ -122,6 +133,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (sevActual > sevPrevio) empeorados.push(item);
     }
   }
+
+  console.log('[alarm-check] empeorados:', empeorados.map(i => `${i.code}(${getEstado(i)})`));
+  console.log('[alarm-check] registrar:', toRegister.length, 'cambios de estado');
 
   // Enviar WhatsApp en línea
   if (empeorados.length) {

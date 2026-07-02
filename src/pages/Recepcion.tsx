@@ -71,7 +71,10 @@ export function Recepcion() {
     fetch('/api/alarm-check', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ codes: [...new Set(codes)] }),
-    }).catch(() => {});
+    })
+      .then(r => r.json())
+      .then(d => console.log('[alarm-check]', d))
+      .catch(e => console.error('[alarm-check] error:', e));
   }
 
   // Edición/eliminación inline
