@@ -49,8 +49,14 @@ export function Recepcion() {
   const { guardarRegistro } = useRegistros({ porPagina: 1 });
   const { profile } = useAuth();
   const [mesFiltro, setMesFiltro] = useState(getMesActual);
+  const [busquedaHistorial, setBusquedaHistorial] = useState('');
+  const [fechaDesdeHistorial, setFechaDesdeHistorial] = useState('');
+  const [fechaHastaHistorial, setFechaHastaHistorial] = useState('');
   const { inicio, fin } = rangoMes(mesFiltro.mes, mesFiltro.año);
-  const { registros: historial, loading: loadingHistorial } = useRegistros({ fechaDesde: inicio, fechaHasta: fin, porPagina: 200 });
+  // Si hay filtro de fechas manual usa esas; si no usa el mes navegado
+  const fechaDesdeQuery = fechaDesdeHistorial || inicio;
+  const fechaHastaQuery = fechaHastaHistorial || fin;
+  const { registros: historial, loading: loadingHistorial } = useRegistros({ fechaDesde: fechaDesdeQuery, fechaHasta: fechaHastaQuery, porPagina: 500 });
   const { selectedProduct, setSelectedProduct } = useSearchContext();
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -62,9 +68,6 @@ export function Recepcion() {
   const [bulkResponsable, setBulkResponsable] = useState('');
   const [bulkFecha, setBulkFecha] = useState(hoy());
   const [importing, setImporting] = useState(false);
-  const [busquedaHistorial, setBusquedaHistorial] = useState('');
-  const [fechaDesdeHistorial, setFechaDesdeHistorial] = useState('');
-  const [fechaHastaHistorial, setFechaHastaHistorial] = useState('');
 
   function checkAlarms(codes: string[]) {
     if (!codes.length) return;

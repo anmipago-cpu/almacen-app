@@ -25,6 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/alarmas',                 icon: AlertTriangle, label: 'Alarmas',                roles: ['admin', 'operario', 'consulta'] },
   { to: '/solicitudes-informadas', icon: Bell,          label: 'Solicitudes Informadas', roles: ['admin', 'operario', 'consulta'] },
   { to: '/historial',       icon: ClipboardList,   label: 'Historial',          roles: ['admin', 'operario', 'consulta'] },
+  { to: '/trazabilidad',    icon: ClipboardList,   label: 'Trazabilidad',        roles: ['admin', 'operario', 'consulta'] },
   { to: '/carga-semanal',  icon: BarChart2,       label: 'Carga Semanal',      roles: ['admin', 'operario', 'consulta'] },
   { to: '/catalogo',        icon: Archive,         label: 'Catálogo',           roles: ['admin'] },
   { to: '/proveedores',     icon: PackagePlus,     label: 'Proveedores',        roles: ['admin'] },

@@ -34,11 +34,19 @@ export function useProveedores() {
   }
 
   async function actualizarProveedor(code: string, cambios: Partial<Proveedor>) {
+    const proveedorActual = proveedores.find(p => p.code === code);
     const { error: err } = await supabase
       .from('proveedores')
       .update(cambios)
       .eq('code', code);
     if (err) throw err;
+    // Si cambió el nombre, actualizar los registros históricos que tenían el nombre anterior
+    if (cambios.name && proveedorActual?.name && cambios.name !== proveedorActual.name) {
+      await supabase
+        .from('recepciones')
+        .update({ proveedor: cambios.name })
+        .eq('proveedor', proveedorActual.name);
+    }
     setProveedores(prev => prev.map(p => p.code === code ? { ...p, ...cambios } : p));
   }
 

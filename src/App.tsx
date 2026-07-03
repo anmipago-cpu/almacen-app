@@ -14,6 +14,7 @@ import { Parametros } from './pages/Parametros';
 import { Usuarios } from './pages/Usuarios';
 import { SolicitudesInformadas } from './pages/SolicitudesInformadas';
 import { ConsumoSemanal } from './pages/ConsumoSemanal';
+import { Registros } from './pages/Registros';
 import { Login } from './pages/Login';
 import { ResetPassword } from './pages/ResetPassword';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -90,6 +91,7 @@ function ProtectedApp() {
           <Route path="/solicitudes-informadas" element={<SolicitudesInformadas />} />
           <Route path="/carga-semanal" element={<ConsumoSemanal />} />
           <Route path="/historial" element={<Historial />} />
+          <Route path="/trazabilidad" element={<Registros />} />
           <Route path="/catalogo" element={<Catalogo />} />
           <Route path="/proveedores" element={<Proveedores />} />
           <Route path="/buscador" element={<Buscador />} />
