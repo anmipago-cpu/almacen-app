@@ -39,11 +39,47 @@ export function exportarCSV(datos: Record<string, unknown>[], nombreArchivo: str
   URL.revokeObjectURL(url);
 }
 
+function toNumero(v: unknown): number | null {
+  if (typeof v === 'number' && !isNaN(v)) return v;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v.replace(/,/g, '')); // quita comas de miles
+    if (!isNaN(n)) return n;
+  }
+  return null;
+}
+
 export function exportarExcel(datos: Record<string, unknown>[], nombreArchivo: string): void {
   if (!datos.length) return;
-  const worksheet = XLSX.utils.json_to_sheet(datos);
+
+  const headers = Object.keys(datos[0]);
+  const ws: Record<string, unknown> = {};
+
+  // Cabeceras (siempre texto)
+  headers.forEach((h, C) => {
+    ws[XLSX.utils.encode_cell({ r: 0, c: C })] = { v: h, t: 's' };
+  });
+
+  // Filas con tipo explícito por celda
+  datos.forEach((row, R) => {
+    headers.forEach((h, C) => {
+      const raw = row[h];
+      const addr = XLSX.utils.encode_cell({ r: R + 1, c: C });
+      const num = toNumero(raw);
+      if (num !== null) {
+        ws[addr] = { v: num, t: 'n' };
+      } else {
+        ws[addr] = { v: raw == null ? '' : String(raw), t: 's' };
+      }
+    });
+  });
+
+  ws['!ref'] = XLSX.utils.encode_range({
+    s: { r: 0, c: 0 },
+    e: { r: datos.length, c: headers.length - 1 },
+  });
+
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Datos');
+  XLSX.utils.book_append_sheet(workbook, ws, 'Datos');
   const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);

@@ -9,6 +9,7 @@ interface FiltrosRegistros {
   tipo?: string;
   busqueda?: string;
   lote?: string;
+  codigosProducto?: string[]; // para filtro por categoría
   pagina?: number;
   porPagina?: number;
 }
@@ -19,9 +20,18 @@ export function useRegistros(filtros: FiltrosRegistros = {}) {
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
 
-  const { fechaDesde, fechaHasta, tipo, busqueda, lote, pagina = 1, porPagina = 25 } = filtros;
+  const { fechaDesde, fechaHasta, tipo, busqueda, lote, codigosProducto, pagina = 1, porPagina = 25 } = filtros;
+  const codigosKey = codigosProducto?.join(',') ?? '';
 
   const cargar = useCallback(async () => {
+    // Si hay filtro de categoría pero ningún producto en ella, resultado vacío sin consultar
+    if (codigosProducto !== undefined && codigosProducto.length === 0) {
+      setRegistros([]);
+      setTotal(0);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       let query = supabase
@@ -36,6 +46,9 @@ export function useRegistros(filtros: FiltrosRegistros = {}) {
       if (busqueda) {
         query = query.or(`producto_name.ilike.%${busqueda}%,producto_code.ilike.%${busqueda}%`);
       }
+      if (codigosProducto && codigosProducto.length > 0) {
+        query = query.in('producto_code', codigosProducto);
+      }
 
       const from = (pagina - 1) * porPagina;
       query = query.range(from, from + porPagina - 1);
@@ -49,7 +62,8 @@ export function useRegistros(filtros: FiltrosRegistros = {}) {
     } finally {
       setLoading(false);
     }
-  }, [fechaDesde, fechaHasta, tipo, busqueda, lote, pagina, porPagina, setRegistros]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fechaDesde, fechaHasta, tipo, busqueda, lote, codigosKey, pagina, porPagina, setRegistros]);
 
   useEffect(() => {
     cargar();

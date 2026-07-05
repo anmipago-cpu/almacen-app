@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Download, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { BadgeTipo } from '../components/ui/Badge';
 import { useRegistros } from '../hooks/useRegistros';
+import { useProductos } from '../hooks/useProductos';
 import { formatFecha, formatNumero, exportarExcel } from '../lib/utils';
 
 const POR_PAGINA = 25;
@@ -17,8 +18,21 @@ export function Registros() {
   const [tipo, setTipo] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [lote, setLote] = useState('');
+  const [categoria, setCategoria] = useState('');
 
-  const { registros, loading, total } = useRegistros({ fechaDesde, fechaHasta, tipo, busqueda, lote, pagina, porPagina: POR_PAGINA });
+  const { productos } = useProductos();
+
+  const categorias = useMemo(
+    () => [...new Set(productos.map(p => p.category).filter(Boolean))].sort(),
+    [productos]
+  );
+
+  const codigosProducto = useMemo(
+    () => categoria ? productos.filter(p => p.category === categoria).map(p => p.code) : undefined,
+    [categoria, productos]
+  );
+
+  const { registros, loading, total } = useRegistros({ fechaDesde, fechaHasta, tipo, busqueda, lote, codigosProducto, pagina, porPagina: POR_PAGINA });
 
   const totalPaginas = Math.ceil(total / POR_PAGINA);
 
@@ -31,7 +45,7 @@ export function Registros() {
   }
 
   function resetFiltros() {
-    setFechaDesde(''); setFechaHasta(''); setTipo(''); setBusqueda(''); setLote(''); setPagina(1);
+    setFechaDesde(''); setFechaHasta(''); setTipo(''); setBusqueda(''); setLote(''); setCategoria(''); setPagina(1);
   }
 
   return (
@@ -83,6 +97,14 @@ export function Registros() {
               placeholder="Lote..."
               className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-32"
             />
+            <select
+              value={categoria}
+              onChange={e => { setCategoria(e.target.value); setPagina(1); }}
+              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Todas las categorías</option>
+              {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
             <button onClick={resetFiltros} className="text-xs text-blue-600 hover:underline">Limpiar filtros</button>
           </div>
         </div>
@@ -115,7 +137,10 @@ export function Registros() {
                     <td className="px-4 py-3 text-slate-500 text-xs max-w-32 truncate">
                       {r.proveedor || r.recibido_por || '—'}
                     </td>
-                    <td className="px-4 py-3 font-mono text-right">{formatNumero(r.cantidad_unidad_natural)}</td>
+                    <td className="px-4 py-3 font-mono text-right">
+                      <div>{formatNumero(r.cantidad_unidad_natural)}</div>
+                      {r.unidad_natural && <div className="text-xs text-slate-400 font-sans">{r.unidad_natural}</div>}
+                    </td>
                     <td className="px-4 py-3 font-mono font-semibold text-right">
                       <span className={(!r.tipo || r.tipo === 'RECEPCION' || r.tipo === 'DEVOLUCION') ? 'text-green-700' : 'text-red-600'}>
                         {(!r.tipo || r.tipo === 'RECEPCION' || r.tipo === 'DEVOLUCION') ? '+' : '-'}{formatNumero(r.total_unidades_base)}
