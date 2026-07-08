@@ -1,0 +1,11 @@
+{
+  "fecha": "2026-07-08",
+  "timestamp": "2026-07-08T07:22:05.395571",
+  "tablas": {
+    "productos": 198,
+    "recepciones": 613,
+    "user_profiles": 7,
+    "alertas_gestion": 118,
+    "inventarios_fisicos": 0
+  }
+}
