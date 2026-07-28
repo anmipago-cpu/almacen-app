@@ -270,7 +270,7 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
       toast.success('Producto actualizado.');
       if (prodOriginal) {
         for (const [campo, nuevoValor] of Object.entries(cambios)) {
-          const valorAnterior = (prodOriginal as Record<string, unknown>)[campo];
+          const valorAnterior = (prodOriginal as unknown as Record<string, unknown>)[campo];
           if (String(valorAnterior ?? '') !== String(nuevoValor ?? '')) {
             await registrarCambio({
               producto_code: code,
@@ -348,7 +348,7 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
         const prodOriginal = productos.find(p => p.code === code);
         if (prodOriginal) {
           for (const [campo, nuevoValor] of Object.entries(cambios)) {
-            const valorAnterior = (prodOriginal as Record<string, unknown>)[campo];
+            const valorAnterior = (prodOriginal as unknown as Record<string, unknown>)[campo];
             if (String(valorAnterior ?? '') !== String(nuevoValor ?? '')) {
               await registrarCambio({
                 producto_code: code,
