@@ -50,6 +50,7 @@ export interface Registro {
   unidad_natural?: string;
   contenido_por_unidad?: number;
   total_unidades_base: number;
+  stock_antes?: number | null;
   observaciones?: string;
   registrado_por?: string;
   created_at?: string;

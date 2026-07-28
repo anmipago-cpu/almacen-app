@@ -301,6 +301,7 @@ export function Consumo() {
         unidad_natural: linea.producto.unit || 'UNIDAD',
         contenido_por_unidad: linea.producto.unit_content || 1,
         total_unidades_base: linea.cantidadBase,
+        stock_antes: linea.stock_actual ?? null,
         observaciones: `${obsPrefix}${metodoConfig.label}`,
       }));
       const { error } = await supabase.from('recepciones').insert(payload);

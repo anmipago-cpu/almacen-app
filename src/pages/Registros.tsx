@@ -36,12 +36,23 @@ export function Registros() {
 
   const totalPaginas = Math.ceil(total / POR_PAGINA);
 
+  function stockDespues(tipo: string | undefined, antes: number | null | undefined, total: number): number | null {
+    if (antes == null) return null;
+    return (!tipo || tipo === 'RECEPCION' || tipo === 'DEVOLUCION') ? antes + total : antes - total;
+  }
+
   function handleExport() {
-    exportarExcel(registros.map(r => ({
-      Fecha: r.fecha, Tipo: r.tipo || 'RECEPCION', Código: r.producto_code, Producto: r.producto_name,
-      Lote: r.lote || '', Proveedor: r.proveedor || '', 'Recibido/Por': r.recibido_por || '',
-      Cantidad: r.cantidad_unidad_natural, Total: r.total_unidades_base, Observaciones: r.observaciones || '',
-    })), 'registros');
+    exportarExcel(registros.map(r => {
+      const despues = stockDespues(r.tipo, r.stock_antes, r.total_unidades_base);
+      return {
+        Fecha: r.fecha, Tipo: r.tipo || 'RECEPCION', Código: r.producto_code, Producto: r.producto_name,
+        Lote: r.lote || '', Proveedor: r.proveedor || '', 'Recibido/Por': r.recibido_por || '',
+        Cantidad: r.cantidad_unidad_natural, Movimiento: r.total_unidades_base,
+        'Stock antes': r.stock_antes ?? '',
+        'Stock después': despues ?? '',
+        Observaciones: r.observaciones || '',
+      };
+    }), 'registros');
   }
 
   function resetFiltros() {
@@ -117,15 +128,18 @@ export function Registros() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-100">
                 <tr>
-                  {['Fecha', 'Tipo', 'Producto', 'Lote', 'Proveedor / Por', 'Cantidad', 'Total', 'Obs.'].map(h => (
+                  {['Fecha', 'Tipo', 'Producto', 'Lote', 'Proveedor / Por', 'Cantidad', 'Movimiento', 'Stock antes', 'Stock después', 'Obs.'].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {registros.length === 0 ? (
-                  <tr><td colSpan={8} className="text-center py-10 text-slate-400">Sin registros</td></tr>
-                ) : registros.map((r, idx) => (
+                  <tr><td colSpan={10} className="text-center py-10 text-slate-400">Sin registros</td></tr>
+                ) : registros.map((r, idx) => {
+                  const esEntrada = !r.tipo || r.tipo === 'RECEPCION' || r.tipo === 'DEVOLUCION';
+                  const despues = stockDespues(r.tipo, r.stock_antes, r.total_unidades_base);
+                  return (
                   <tr key={r.id} className={`border-b border-slate-50 hover:bg-blue-50/20 ${idx % 2 === 0 ? '' : 'bg-slate-50/30'}`}>
                     <td className="px-4 py-3 whitespace-nowrap text-slate-600">{formatFecha(r.fecha)}</td>
                     <td className="px-4 py-3"><BadgeTipo tipo={r.tipo || 'RECEPCION'} /></td>
@@ -142,15 +156,26 @@ export function Registros() {
                       {r.unidad_natural && <div className="text-xs text-slate-400 font-sans">{r.unidad_natural}</div>}
                     </td>
                     <td className="px-4 py-3 font-mono font-semibold text-right">
-                      <span className={(!r.tipo || r.tipo === 'RECEPCION' || r.tipo === 'DEVOLUCION') ? 'text-green-700' : 'text-red-600'}>
-                        {(!r.tipo || r.tipo === 'RECEPCION' || r.tipo === 'DEVOLUCION') ? '+' : '-'}{formatNumero(r.total_unidades_base)}
+                      <span className={esEntrada ? 'text-green-700' : 'text-red-600'}>
+                        {esEntrada ? '+' : '-'}{formatNumero(r.total_unidades_base)}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-right text-slate-500">
+                      {r.stock_antes != null ? formatNumero(r.stock_antes) : <span className="text-slate-300 text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3 font-mono font-semibold text-right">
+                      {despues != null ? (
+                        <span className={despues < 0 ? 'text-red-600' : 'text-slate-800'}>
+                          {formatNumero(despues)}
+                        </span>
+                      ) : <span className="text-slate-300 text-xs">—</span>}
                     </td>
                     <td className="px-4 py-3 text-slate-400 text-xs max-w-40 truncate" title={r.observaciones || ''}>
                       {r.observaciones || '—'}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

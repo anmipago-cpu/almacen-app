@@ -192,6 +192,13 @@ export function Recepcion() {
     setLoteError('');
     setGuardando(true);
     try {
+      const { data: invData } = await supabase
+        .from('inventario_actual')
+        .select('stock_actual')
+        .eq('code', productoSeleccionado.code)
+        .single();
+      const stockAntes: number | null = (invData as any)?.stock_actual ?? null;
+
       await guardarRegistro({
         fecha: data.fecha,
         producto_code: productoSeleccionado.code,
@@ -205,6 +212,7 @@ export function Recepcion() {
         unidad_natural: productoSeleccionado.unit || 'UNIDAD',
         contenido_por_unidad: contenidoProducto,
         total_unidades_base: totalUnidades,
+        stock_antes: stockAntes,
         observaciones: data.observaciones || undefined,
         registrado_por: profile?.nombre || profile?.email || undefined,
       });
