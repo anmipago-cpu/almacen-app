@@ -216,7 +216,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // CallMeBot requiere esperar 1s entre mensajes
         if (i > 0) await new Promise(r => setTimeout(r, 1500));
         const r = await fetch(url);
-        waResults.push(`${phone}: ${r.ok ? 'ok' : `error ${r.status}`}`);
+        const body = await r.text();
+        console.log(`[notificaciones] callmebot ${phone}: HTTP ${r.status} → ${body.slice(0, 200)}`);
+        waResults.push(`${phone}: ${body.slice(0, 80)}`);
       } catch (e) {
         waResults.push(`${phone}: error ${(e as Error).message}`);
       }
