@@ -61,16 +61,29 @@ async function sbPost(url: string, key: string, table: string, data: object) {
   });
 }
 
-async function sendWhatsApp(msg: string) {
+async function sendWhatsApp(msg: string): Promise<{ phone: string; status: number; body: string }[]> {
   const phones  = (process.env.CALLMEBOT_PHONE  ?? '').split(',').map(s => s.trim()).filter(Boolean);
   const apikeys = (process.env.CALLMEBOT_APIKEY ?? '').split(',').map(s => s.trim()).filter(Boolean);
-  if (!phones.length || !apikeys.length) return;
+  const resultados: { phone: string; status: number; body: string }[] = [];
+  if (!phones.length || !apikeys.length) {
+    console.warn('[alarm-check] sendWhatsApp: no hay teléfonos o API keys configurados');
+    return resultados;
+  }
   const text = encodeURIComponent(msg);
   for (let i = 0; i < phones.length; i++) {
     const apikey = apikeys[i] ?? apikeys[0];
     if (i > 0) await new Promise(r => setTimeout(r, 1500));
-    await fetch(`https://api.callmebot.com/whatsapp.php?phone=${phones[i]}&text=${text}&apikey=${apikey}`);
+    try {
+      const r = await fetch(`https://api.callmebot.com/whatsapp.php?phone=${phones[i]}&text=${text}&apikey=${apikey}`);
+      const body = await r.text();
+      console.log(`[alarm-check] callmebot ${phones[i]}: HTTP ${r.status} → ${body.slice(0, 200)}`);
+      resultados.push({ phone: phones[i], status: r.status, body: body.slice(0, 200) });
+    } catch (e) {
+      console.error(`[alarm-check] callmebot ${phones[i]}: error de red →`, e);
+      resultados.push({ phone: phones[i], status: 0, body: String(e) });
+    }
   }
+  return resultados;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -139,15 +152,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log('[alarm-check] registrar:', toRegister.length, 'cambios de estado');
 
   // Enviar WhatsApp en línea
+  let whatsappResults: { phone: string; status: number; body: string }[] = [];
   if (empeorados.length) {
     const hoy = new Date().toLocaleDateString('es-CO', {
       day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Bogota',
     });
-    await sendWhatsApp(buildMsg(empeorados, hoy));
+    whatsappResults = await sendWhatsApp(buildMsg(empeorados, hoy));
   }
 
   // Registrar nuevos estados
   await Promise.all(toRegister.map(r => sbPost(url, key, 'alertas_gestion', r)));
 
-  return res.status(200).json({ checked: items.length, worsened: empeorados.length });
+  return res.status(200).json({
+    checked: items.length,
+    worsened: empeorados.length,
+    whatsapp: whatsappResults,
+  });
 }
