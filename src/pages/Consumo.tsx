@@ -239,11 +239,15 @@ export function Consumo() {
       // MODO CONTEO FÍSICO: el usuario ingresa cuánto tiene ahora
       const conteoFisicoBase = tipoUnidad === 'conteo' ? cant * unitContent : cant;
       const diferencia = stockActualBase - conteoFisicoBase;
-      if (diferencia <= 0) {
+      if (diferencia === 0) {
+        toast.error('El conteo coincide con el sistema, no hay diferencia');
+        return;
+      }
+      // Solo bloquear si el stock actual es >= 0 y el conteo supera el stock.
+      // Si el stock ya está en negativo, se permite el ajuste correctivo.
+      if (diferencia < 0 && stockActualBase >= 0) {
         toast.error(
-          diferencia === 0
-            ? 'El conteo coincide con el sistema, no hay diferencia'
-            : `El conteo (${formatNumero(conteoFisicoBase, 0)}) es MAYOR que el stock registrado (${formatNumero(stockActualBase, 0)}). Crea una Recepción para la diferencia.`
+          `El conteo (${formatNumero(conteoFisicoBase, 0)}) es MAYOR que el stock registrado (${formatNumero(stockActualBase, 0)}). Crea una Recepción para la diferencia.`
         );
         return;
       }
