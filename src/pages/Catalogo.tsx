@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { RefreshCw, PlusCircle, Database, Download, TrendingUp } from 'lucide-react';
+import { RefreshCw, PlusCircle, Database, Download, TrendingUp, ClipboardList } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -15,6 +15,8 @@ import { supabase } from '../lib/supabase';
 import { exportarExcel } from '../lib/utils';
 import { CATEGORIAS, SUBCATEGORIAS, type Producto } from '../types';
 import { useStore } from '../store/useStore';
+import { useAuth } from '../context/AuthContext';
+import { useAuditoriaCatalogo } from '../hooks/useAuditoriaCatalogo';
 
 
 
@@ -72,6 +74,7 @@ export function Catalogo() {
   const { unidadesConteo, unidadesBase } = useUnidades();
   const subcategoriasStore = useStore(s => s.subcategorias);
   const categoriasStore = useStore(s => s.categorias);
+  const { profile } = useAuth();
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [bulkItems, setBulkItems] = useState<Producto[]>([]);
   const [bulkErrors, setBulkErrors] = useState<string[]>([]);
@@ -87,6 +90,7 @@ export function Catalogo() {
   const [editando, setEditando] = useState<Record<string, Partial<Producto>>>({});
   const [editingProductCode, setEditingProductCode] = useState<string | null>(null);
   const [modoMasivo, setModoMasivo] = useState(false);
+  const [tab, setTab] = useState<'catalogo' | 'historial'>('catalogo');
 
   const nextIdentifier = useMemo(
     () => getNextIdentifier(productos, form.category, form.subcategory),
@@ -187,6 +191,25 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
     });
   }
 
+  async function registrarCambio(params: {
+    producto_code: string;
+    producto_name: string;
+    accion: string;
+    campo?: string;
+    valor_anterior?: string;
+    valor_nuevo?: string;
+  }) {
+    try {
+      await supabase.from('auditoria_catalogo').insert({
+        ...params,
+        usuario_id: profile?.id ?? null,
+        usuario_nombre: profile?.nombre ?? null,
+      });
+    } catch (e) {
+      console.warn('Error registrando auditoría:', e);
+    }
+  }
+
   async function createProduct() {
     if (!form.name || !form.category || !form.unit) {
       toast.error('Completa todos los campos obligatorios antes de guardar.');
@@ -222,6 +245,7 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
       const { error } = await supabase.from('productos').insert(payload);
       if (error) throw error;
       toast.success('Producto creado correctamente.');
+      await registrarCambio({ producto_code: code, producto_name: form.name, accion: 'CREADO' });
       setForm({ ...EMPTY_FORM });
       recargar();
     } catch (error: unknown) {
@@ -236,6 +260,7 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
   async function guardarEdicion(code: string) {
     const cambios = editando[code];
     if (!cambios || Object.keys(cambios).length === 0) return;
+    const prodOriginal = productos.find(p => p.code === code);
     setSaving(true);
     try {
       const { error } = await supabase.from('productos').update(cambios).eq('code', code);
@@ -243,6 +268,21 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
       setEditando(prev => { const next = { ...prev }; delete next[code]; return next; });
       setEditingProductCode(null);
       toast.success('Producto actualizado.');
+      if (prodOriginal) {
+        for (const [campo, nuevoValor] of Object.entries(cambios)) {
+          const valorAnterior = (prodOriginal as Record<string, unknown>)[campo];
+          if (String(valorAnterior ?? '') !== String(nuevoValor ?? '')) {
+            await registrarCambio({
+              producto_code: code,
+              producto_name: prodOriginal.name,
+              accion: 'EDITADO',
+              campo,
+              valor_anterior: String(valorAnterior ?? ''),
+              valor_nuevo: String(nuevoValor ?? ''),
+            });
+          }
+        }
+      }
       recargar();
     } catch (error: unknown) {
       const msg = (error as any)?.message ?? JSON.stringify(error) ?? 'Error al actualizar producto';
@@ -255,6 +295,7 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
 
   async function eliminarProducto(code: string) {
     if (!confirm(`¿Eliminar producto ${code}?`)) return;
+    const prodOriginal = productos.find(p => p.code === code);
     setSaving(true);
     try {
       const [{ count: recCount }, { count: conCount }, { count: invCount }] = await Promise.all([
@@ -267,10 +308,12 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
         const { error } = await supabase.from('productos').update({ active: false }).eq('code', code);
         if (error) throw error;
         toast.info(`Producto ${code} desactivado (tiene registros históricos, el código queda reservado).`);
+        await registrarCambio({ producto_code: code, producto_name: prodOriginal?.name ?? code, accion: 'DESACTIVADO' });
       } else {
         const { error } = await supabase.from('productos').delete().eq('code', code);
         if (error) throw error;
         toast.success(`Producto ${code} eliminado. El código puede reutilizarse.`);
+        await registrarCambio({ producto_code: code, producto_name: prodOriginal?.name ?? code, accion: 'ELIMINADO' });
       }
       recargar();
     } catch (error: unknown) {
@@ -302,6 +345,22 @@ function handleField(field: keyof typeof EMPTY_FORM, value: string | boolean) {
       for (const [code, cambios] of conCambios) {
         const { error } = await supabase.from('productos').update(cambios).eq('code', code);
         if (error) throw error;
+        const prodOriginal = productos.find(p => p.code === code);
+        if (prodOriginal) {
+          for (const [campo, nuevoValor] of Object.entries(cambios)) {
+            const valorAnterior = (prodOriginal as Record<string, unknown>)[campo];
+            if (String(valorAnterior ?? '') !== String(nuevoValor ?? '')) {
+              await registrarCambio({
+                producto_code: code,
+                producto_name: prodOriginal.name,
+                accion: 'EDITADO',
+                campo,
+                valor_anterior: String(valorAnterior ?? ''),
+                valor_nuevo: String(nuevoValor ?? ''),
+              });
+            }
+          }
+        }
       }
       toast.success(`${conCambios.length} productos guardados.`);
       setEditando({});
@@ -580,6 +639,25 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
         </Card>
       </div>
 
+      <div className="flex gap-1 mb-4">
+        <button
+          onClick={() => setTab('catalogo')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${tab === 'catalogo' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+        >
+          Lista de productos
+        </button>
+        <button
+          onClick={() => setTab('historial')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${tab === 'historial' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+        >
+          <ClipboardList size={15} />
+          Historial de cambios
+        </button>
+      </div>
+
+      {tab === 'historial' ? (
+        <HistorialCatalogo />
+      ) : (
       <Card className="!p-0 overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -934,6 +1012,8 @@ async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
           </table>
         </div>
       </Card>
+
+      )}
 
       {showConsumoPanel && (
         <PanelActualizarConsumo
@@ -1372,5 +1452,160 @@ function MultiSelectSubcategorias({ opciones, value, onChange }: { opciones: { c
         </div>
       )}
     </div>
+  );
+}
+
+// ── Historial de cambios del catálogo ────────────────────────────────────────
+
+const ACCION_BADGE: Record<string, string> = {
+  CREADO:      'bg-emerald-100 text-emerald-700',
+  EDITADO:     'bg-blue-100 text-blue-700',
+  ELIMINADO:   'bg-red-100 text-red-700',
+  DESACTIVADO: 'bg-amber-100 text-amber-700',
+};
+
+function HistorialCatalogo() {
+  const [busqueda, setBusqueda] = useState('');
+  const [accion, setAccion]     = useState('');
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+  const [pagina, setPagina]     = useState(1);
+  const POR_PAGINA = 50;
+
+  const { registros, loading, total } = useAuditoriaCatalogo({
+    busqueda: busqueda || undefined,
+    accion:   accion   || undefined,
+    fechaDesde: fechaDesde || undefined,
+    fechaHasta: fechaHasta || undefined,
+    pagina,
+    porPagina: POR_PAGINA,
+  });
+
+  const totalPags = Math.max(1, Math.ceil(total / POR_PAGINA));
+
+  function limpiar() {
+    setBusqueda(''); setAccion(''); setFechaDesde(''); setFechaHasta(''); setPagina(1);
+  }
+
+  return (
+    <Card className="!p-0 overflow-hidden">
+      {/* Barra de filtros */}
+      <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">Historial de cambios del catálogo</h2>
+          <p className="text-sm text-slate-500">Registro de todas las modificaciones con usuario y fecha.</p>
+        </div>
+        <div className="flex flex-wrap gap-2 ml-auto">
+          <input
+            value={busqueda}
+            onChange={e => { setBusqueda(e.target.value); setPagina(1); }}
+            placeholder="Buscar por código, nombre, usuario..."
+            className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-purple-200"
+          />
+          <select
+            value={accion}
+            onChange={e => { setAccion(e.target.value); setPagina(1); }}
+            className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+          >
+            <option value="">Todas las acciones</option>
+            <option value="CREADO">Creado</option>
+            <option value="EDITADO">Editado</option>
+            <option value="DESACTIVADO">Desactivado</option>
+            <option value="ELIMINADO">Eliminado</option>
+          </select>
+          <input
+            type="date" value={fechaDesde}
+            onChange={e => { setFechaDesde(e.target.value); setPagina(1); }}
+            className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+          />
+          <input
+            type="date" value={fechaHasta}
+            onChange={e => { setFechaHasta(e.target.value); setPagina(1); }}
+            className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+          />
+          {(busqueda || accion || fechaDesde || fechaHasta) && (
+            <button onClick={limpiar} className="text-sm text-slate-400 hover:text-slate-600 underline">
+              Limpiar
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tabla */}
+      <div className="overflow-x-auto">
+        {loading ? (
+          <div className="py-12 text-center text-slate-400 text-sm">Cargando historial...</div>
+        ) : registros.length === 0 ? (
+          <div className="py-12 text-center text-slate-400 text-sm">
+            No hay registros de cambios todavía.{' '}
+            <span className="text-slate-300">Los cambios futuros en el catálogo aparecerán aquí.</span>
+          </div>
+        ) : (
+          <table className="w-full text-xs">
+            <thead className="bg-slate-100 border-b border-slate-200 sticky top-0">
+              <tr>
+                <th className="px-3 py-2 text-left font-semibold text-slate-600 whitespace-nowrap">Fecha</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-600">Acción</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-600">Código</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-600 min-w-[180px]">Producto</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-600">Campo</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-600 min-w-[120px]">Valor anterior</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-600 min-w-[120px]">Valor nuevo</th>
+                <th className="px-3 py-2 text-left font-semibold text-slate-600">Usuario</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {registros.map((r, i) => (
+                <tr key={r.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                  <td className="px-3 py-2 whitespace-nowrap text-slate-500 font-mono">
+                    {new Date(r.created_at).toLocaleString('es-CO', {
+                      day: '2-digit', month: '2-digit', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota',
+                    })}
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${ACCION_BADGE[r.accion] ?? 'bg-slate-100 text-slate-600'}`}>
+                      {r.accion}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 font-mono font-semibold text-slate-700 whitespace-nowrap">
+                    {r.producto_code}
+                  </td>
+                  <td className="px-3 py-2 text-slate-800 max-w-[200px] truncate" title={r.producto_name ?? ''}>
+                    {r.producto_name ?? '—'}
+                  </td>
+                  <td className="px-3 py-2 text-slate-500 font-mono">{r.campo ?? '—'}</td>
+                  <td className="px-3 py-2 text-slate-500 max-w-[150px] truncate" title={r.valor_anterior ?? ''}>
+                    {r.valor_anterior ?? '—'}
+                  </td>
+                  <td className="px-3 py-2 text-slate-800 font-medium max-w-[150px] truncate" title={r.valor_nuevo ?? ''}>
+                    {r.valor_nuevo ?? '—'}
+                  </td>
+                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{r.usuario_nombre ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Paginación */}
+      {totalPags > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50 text-xs text-slate-500">
+          <span>{total} registros</span>
+          <div className="flex gap-1">
+            <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1}
+              className="px-3 py-1 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-white">
+              ← Anterior
+            </button>
+            <span className="px-3 py-1">{pagina} / {totalPags}</span>
+            <button onClick={() => setPagina(p => Math.min(totalPags, p + 1))} disabled={pagina === totalPags}
+              className="px-3 py-1 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-white">
+              Siguiente →
+            </button>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
