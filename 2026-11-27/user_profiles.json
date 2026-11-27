@@ -1,0 +1,58 @@
+[
+  {
+    "id": "f2acc058-887c-4eb9-b3ee-8a5438dfd9bb",
+    "nombre": "Andrea Palacio",
+    "email": "anmipago@gmail.com",
+    "rol": "admin",
+    "activo": true,
+    "created_at": "2026-06-11T20:17:53.743957+00:00"
+  },
+  {
+    "id": "72f024e4-0939-4ec3-940d-d19e899f4ea4",
+    "nombre": "Genny Aponte",
+    "email": "dcqualitysup@gmail.com",
+    "rol": "admin",
+    "activo": true,
+    "created_at": "2026-06-11T20:33:45.870861+00:00"
+  },
+  {
+    "id": "c3163d2f-84f0-42a9-b519-5bbbffc7d07a",
+    "nombre": "Luis Sarmiento",
+    "email": "lhsc3313@gmail.com",
+    "rol": "admin",
+    "activo": true,
+    "created_at": "2026-06-11T20:38:18.155862+00:00"
+  },
+  {
+    "id": "3d5befe0-8671-4c28-b07b-5fae03bd346f",
+    "nombre": "Sayuri Lozano",
+    "email": "sayuri.lozanov@gmail.com",
+    "rol": "operario",
+    "activo": true,
+    "created_at": "2026-06-15T14:52:13.479595+00:00"
+  },
+  {
+    "id": "3f6d755d-af7b-47f4-a45b-8f40761f9e71",
+    "nombre": "Abraham Rodriguez",
+    "email": "dairycreations@gmail.com",
+    "rol": "consulta",
+    "activo": true,
+    "created_at": "2026-06-19T16:36:45.786676+00:00"
+  },
+  {
+    "id": "3604e7e4-fb3e-409f-92ea-14b147764587",
+    "nombre": "Anderson Chacón",
+    "email": "dcproductionsup@gmail.com",
+    "rol": "operario",
+    "activo": true,
+    "created_at": "2026-06-15T15:12:57.60713+00:00"
+  },
+  {
+    "id": "6f9972f5-86c7-43ba-955c-f19c00eee626",
+    "nombre": "Jonathan -Hantos",
+    "email": "jonathan@antojoscriollos.com",
+    "rol": "consulta",
+    "activo": true,
+    "created_at": "2026-06-22T17:53:10.521253+00:00"
+  }
+]
